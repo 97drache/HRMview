@@ -1,0 +1,12 @@
+---
+description: After code changes that affect the shipped app, run pack automatically.
+globs: "**/*.{ts,tsx,js,cjs,css}"
+alwaysApply: false
+---
+
+When the user requests HRM app changes that require a production artifact, finish the task by running from the project root:
+
+- `npm run build` if TypeScript/Vite output must be verified, and
+- `npm run pack` (or `npm run setup` when dependencies may have changed) so `HRM-app\HRM-Desktop.exe` is updated.
+
+Do not leave repacking for the user unless the environment cannot run npm (e.g. Node missing).

@@ -1,0 +1,92 @@
+{
+  "name": "hrm",
+  "private": true,
+  "version": "0.1.0",
+  "description": "로컬 전용 인사 시계열 대시보드",
+  "author": "Local",
+  "type": "module",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "vite",
+    "dev:desktop": "concurrently -k \"vite\" \"wait-on tcp:127.0.0.1:5173 && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron .\"",
+    "build": "tsc -b && vite build && npm run build:headcount-web",
+    "build:headcount-web": "tsx scripts/export-headcount-public.ts && vite build --config vite.headcount-web.config.ts",
+    "dev:headcount-web": "vite --config vite.headcount-web.config.ts",
+    "export:headcount-public": "tsx scripts/export-headcount-public.ts",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "pack": "node scripts/pack-windows.cjs",
+    "dist": "npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --x64",
+    "app:folder": "npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --dir --x64",
+    "app:folder:alt": "npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --dir --x64 --config.directories.output=out-app",
+    "app:portable": "npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win portable --x64",
+    "exe": "npm run pack",
+    "start:built": "npm run build && electron .",
+    "exe:clean": "node scripts/clean-release.cjs",
+    "exe:rebuild": "npm run pack",
+    "setup": "npm install && node scripts/pack-windows.cjs"
+  },
+  "dependencies": {
+    "date-fns": "^4.1.0",
+    "date-holidays": "^3.28.0",
+    "exceljs": "^4.4.0",
+    "html2canvas": "^1.4.1",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "recharts": "^3.8.1",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@tailwindcss/vite": "^4.3.0",
+    "@types/node": "^24.12.2",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
+    "electron": "^42.0.1",
+    "electron-builder": "^26.8.1",
+    "eslint": "^10.2.1",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "globals": "^17.5.0",
+    "tailwindcss": "^4.3.0",
+    "tsx": "^4.21.0",
+    "typescript": "~6.0.2",
+    "typescript-eslint": "^8.58.2",
+    "vite": "^8.0.10",
+    "wait-on": "^9.0.5"
+  },
+  "build": {
+    "appId": "com.local.hrm.dashboard",
+    "productName": "HRM 로컬 대시보드",
+    "executableName": "HRM-Desktop",
+    "directories": {
+      "output": "release"
+    },
+    "artifactName": "HRM-Desktop-Portable-${version}.${ext}",
+    "asar": false,
+    "files": [
+      "dist/**/*",
+      "electron/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "data",
+        "to": "data"
+      }
+    ],
+    "win": {
+      "signAndEditExecutable": false,
+      "target": [
+        {
+          "target": "dir",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    }
+  }
+}

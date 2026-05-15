@@ -1,0 +1,39 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+headcount-web/dist
+headcount-web/public/headcount-snapshot.json
+dist-ssr
+release
+out-app
+pack-builds
+HRM-app
+*.local
+
+# 인사 DB 엑셀은 저장소에 올리지 않음 (폴더 구조만 유지)
+data/*
+!data/.gitkeep
+
+# 루트에 DB를 두는 실수 방지
+/HRdata.xlsx
+/HRData.xlsx
+/hrdata.xlsx
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

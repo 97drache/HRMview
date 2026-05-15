@@ -1,0 +1,22 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Malgun Gothic', 'Apple SD Gothic Neo', 'Segoe UI', system-ui, sans-serif;
+  --color-ink: #0f172a;
+  --color-muted: #64748b;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    margin: 0;
+    font-family: var(--font-sans);
+    color: var(--color-ink);
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 45%, #f8fafc 100%);
+    -webkit-font-smoothing: antialiased;
+  }
+}
