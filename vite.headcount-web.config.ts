@@ -1,11 +1,10 @@
 /**
  * 인원현황(1번) 숫자·차트만 — Vercel 별도 프로젝트용 정적 사이트.
  *
- * Vercel 설정 예 (저장소 루트 연결, 새 프로젝트):
- * - Install: npm ci
- * - Build: npm run build:headcount-web
- * - Output: headcount-web/dist
- * 기존 Polar Run 프로젝트와 도메인·환경변수가 분리됩니다.
+ * Vercel 등 CI에서는 npm run build:headcount-web 만 실행합니다.
+ * headcount-web/public/headcount-snapshot.json 을 레포에 커밋해 두면 빌드 시 그대로 포함됩니다.
+ * 로컬에서 엑셀 반영 후 갱신: npm run export:headcount-public → 커밋 후 푸시.
+ * (export 단계를 매 빌드에 넣으면 CI에서 엑셀이 없어 빈 스냅샷으로 덮어씁니다.)
  */
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
