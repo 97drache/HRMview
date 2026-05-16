@@ -16,10 +16,13 @@ export type NavKey =
   | 'r-4-1-2'
   | 'r-4-2'
   | 'c-5-1'
+  | 'doc-6-1'
+  | 'doc-6-2'
+  | 'doc-6-3'
 
 export type NavGroupDef = {
   id: string
-  /** 대분류 표시 번호 (1~5) */
+  /** 대분류 표시 번호 */
   groupNo: number
   title: string
   shortTitle: string
@@ -87,6 +90,18 @@ export const NAV_GROUPS: NavGroupDef[] = [
     shortTitle: '증명서',
     subtitle: '경력증명서',
     items: [{ key: 'c-5-1', code: '5-1', label: '경력증명서' }],
+  },
+  {
+    id: 'g6',
+    groupNo: 6,
+    title: '6. 서류만들어줘',
+    shortTitle: '서류만들어줘',
+    subtitle: '지급·출장·명함',
+    items: [
+      { key: 'doc-6-1', code: '6-1', label: '지급신청서 증빙' },
+      { key: 'doc-6-2', code: '6-2', label: '출장 증빙' },
+      { key: 'doc-6-3', code: '6-3', label: '명함관리' },
+    ],
   },
 ]
 

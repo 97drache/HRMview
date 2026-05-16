@@ -1,6 +1,8 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { OverviewDashboard } from '../components/OverviewDashboard'
 import { CareerCertificatePanel } from '../components/CareerCertificatePanel'
+import { TripProofPanel } from '../components/TripProofPanel'
+import { ExpenseProofPanel } from '../components/ExpenseProofPanel'
 import { CopyableStackedBar, CopyableYearRankChart } from '../components/CopyableChart'
 import type { NavKey } from '../navConfig'
 import { LeaveNotificationPanel } from '../components/LeaveNotificationPanel'
@@ -38,8 +40,6 @@ export function DashboardPanels({
   const [yearForMovement, setYearForMovement] = useState(() => baseDate.getFullYear())
   const [searchName, setSearchName] = useState('')
 
-  const notes = data?.sheetNotes ?? []
-
   const yearRange = useMemo(() => {
     if (!data?.personnel?.length) {
       const y = baseDate.getFullYear()
@@ -57,59 +57,40 @@ export function DashboardPanels({
     if (active === 'c-5-1') {
       return (
         <div className="mx-auto flex max-w-6xl flex-col gap-5 pb-10">
-          <Card
-            code="5-1"
-            title="경력증명서"
-            desc="대시보드용 HRdata.xlsx와 별도로, 기관 인사기록부 양식(.xlsx)을 업로드해 발급합니다. 추출은 「성명·생년월일·임용일자」「승진승급」「근무기록」「보직현황」등 키워드 기준입니다."
-          >
+          <Card code="5-1" title="경력증명서">
             <CareerCertificatePanel />
           </Card>
         </div>
       )
     }
-    return (
-      <div className="mx-auto max-w-3xl">
-        <Card
-          code="0-0"
-          title="시작하기"
-          desc="데스크톱 앱에서는 data 폴더의 HRdata.xlsx 가 자동으로 열립니다. 파일과 시트 이름을 확인해 주세요."
-        >
-          <div className="rounded-xl border border-sky-100 bg-sky-50/50 p-4 text-sm text-slate-700">
-            <div className="font-semibold text-slate-900">시트 이름 안내</div>
-            <ul className="mt-2 list-disc space-y-1 pl-5">
-              <li>
-                <span className="font-mono">인원현황</span> (또는 이름에 「인원」 포함)
-              </li>
-              <li>
-                <span className="font-mono">휴직현황</span>
-              </li>
-              <li>
-                <span className="font-mono">연수현황</span> (또는 「연수」)
-              </li>
-            </ul>
-            <div className="mt-3 text-xs text-slate-500">
-              퇴직/임금피크 계산을 위해 인원 시트에 <span className="font-mono">퇴직일</span>,{' '}
-              <span className="font-mono">퇴직사유</span> 열이 있으면 자동 반영됩니다.
-            </div>
-          </div>
-        </Card>
-      </div>
-    )
+    if (active === 'doc-6-1') {
+      return (
+        <div className="mx-auto flex max-w-6xl flex-col gap-5 pb-10">
+          <ExpenseProofPanel />
+        </div>
+      )
+    }
+    if (active === 'doc-6-2') {
+      return (
+        <div className="mx-auto flex max-w-6xl flex-col gap-5 pb-10">
+          <TripProofPanel />
+        </div>
+      )
+    }
+    if (active === 'doc-6-3') {
+      return (
+        <div className="mx-auto flex max-w-6xl flex-col gap-5 pb-10">
+          <Card code="6-3" title="명함관리">
+            <p className="text-sm text-slate-600">준비 중</p>
+          </Card>
+        </div>
+      )
+    }
+    return null
   }
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-5 pb-10">
-      {notes.length ? (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-          <div className="font-semibold">엑셀 시트 안내</div>
-          <ul className="mt-2 list-disc space-y-1 pl-5">
-            {notes.map((n) => (
-              <li key={n}>{n}</li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-
       {active === 'home' ? (
         <OverviewDashboard
           personnel={data.personnel}
@@ -884,12 +865,16 @@ export function DashboardPanels({
       {active === 'r-4-2' ? <LeaveNotificationPanel /> : null}
 
       {active === 'c-5-1' ? (
-        <Card
-          code="5-1"
-          title="경력증명서"
-          desc="인사기록부 엑셀을 업로드하고 사번·직종을 입력하면 미리보기 및 인쇄용 HTML이 열립니다. (브라우저 인쇄 대화상자에서 PDF로 저장할 수 있습니다.)"
-        >
+        <Card code="5-1" title="경력증명서">
           <CareerCertificatePanel />
+        </Card>
+      ) : null}
+
+      {active === 'doc-6-1' ? <ExpenseProofPanel /> : null}
+      {active === 'doc-6-2' ? <TripProofPanel /> : null}
+      {active === 'doc-6-3' ? (
+        <Card code="6-3" title="명함관리" desc="준비 중입니다.">
+          <p className="text-sm text-slate-600">곧 연결 예정입니다.</p>
         </Card>
       ) : null}
     </div>

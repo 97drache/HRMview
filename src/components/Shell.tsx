@@ -17,7 +17,7 @@ export function Shell({
   onSelectCategory: (groupId: string) => void
   children: ReactNode
 }) {
-  const { baseDate, setBaseDate, fileName, filePath, dataDirectory, dataLoading, dataLoadError } = useData()
+  const { baseDate, setBaseDate, dataLoading, dataLoadError } = useData()
   const dateId = useId()
   const isDesktop = typeof window !== 'undefined' && window.hrmDesktop?.isDesktop === true
   const activeGroupId = groupIdForNavKey(active)
@@ -32,7 +32,6 @@ export function Shell({
           </div>
           <div className="mt-2 text-base font-semibold tracking-tight text-slate-900">시계열 대시보드</div>
           <div className="mt-3 text-[11px] font-medium text-slate-700">{currentGroup.title}</div>
-          <p className="mt-1 text-[11px] leading-relaxed text-slate-500">{currentGroup.subtitle}</p>
         </div>
 
         <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 py-4">
@@ -68,13 +67,6 @@ export function Shell({
             )
           })}
         </nav>
-
-        <div className="mt-auto border-t border-slate-100 p-4">
-          <p className="text-[11px] leading-relaxed text-slate-500">
-            메뉴 코드(예: <span className="font-mono font-medium text-slate-700">2-1</span>)를 요청서에 적으면 수정이
-            빨라집니다.
-          </p>
-        </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -85,9 +77,6 @@ export function Shell({
                 <span className="text-2xl font-semibold tracking-tight text-slate-900">HRM</span>
                 <span className="text-sm font-medium text-slate-500">Human Resource Manager</span>
               </div>
-              <p className="mt-2 max-w-xl text-xs leading-relaxed text-slate-500">
-                이 PC에서만 사용하는 로컬 인사 시계열 도구입니다.
-              </p>
             </div>
 
             <div className="min-w-0 sm:text-right">
@@ -150,43 +139,9 @@ export function Shell({
           </div>
         </header>
 
-        {!isDesktop ? (
-          <div className="mx-6 mt-4 rounded-xl border border-amber-200/80 bg-amber-50/80 px-4 py-3 text-sm text-amber-950">
-            브라우저 미리보기입니다. HRdata.xlsx 자동 로드는{' '}
-            <strong className="font-semibold">Electron 데스크톱</strong>에서만 동작합니다.{' '}
-            <code className="rounded-md bg-white/90 px-1.5 py-0.5 font-mono text-xs text-slate-800">
-              npm run dev:desktop
-            </code>
-          </div>
-        ) : null}
-
-        {isDesktop && dataLoading ? (
-          <div className="mx-6 mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-            HRdata.xlsx 를 불러오는 중…
-          </div>
-        ) : null}
-
         {isDesktop && dataLoadError && !dataLoading ? (
           <div className="mx-6 mt-4 rounded-xl border border-rose-200/80 bg-rose-50/80 px-4 py-3 text-sm text-rose-950">
             {dataLoadError}
-          </div>
-        ) : null}
-
-        {fileName && !dataLoading ? (
-          <div className="mx-6 mt-3 space-y-1 text-center text-xs text-slate-500 sm:text-left">
-            <div>
-              데이터 파일: <span className="font-medium text-slate-800">{fileName}</span>
-            </div>
-            {isDesktop && dataDirectory ? (
-              <div className="break-all">
-                자동 로드 폴더: <span className="font-mono text-[11px] text-slate-700">{dataDirectory}</span>
-              </div>
-            ) : null}
-            {isDesktop && filePath ? (
-              <div className="break-all">
-                실제 경로: <span className="font-mono text-[11px] text-slate-700">{filePath}</span>
-              </div>
-            ) : null}
           </div>
         ) : null}
 

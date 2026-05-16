@@ -28,6 +28,7 @@
     "setup": "npm install && node scripts/pack-windows.cjs"
   },
   "dependencies": {
+    "@fontsource/nanum-gothic": "^5.2.7",
     "date-fns": "^4.1.0",
     "date-holidays": "^3.28.0",
     "exceljs": "^4.4.0",
@@ -35,6 +36,8 @@
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "recharts": "^3.8.1",
+    "sharp": "^0.33.5",
+    "tesseract.js": "^7.0.0",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
@@ -70,7 +73,11 @@
     "asar": false,
     "files": [
       "dist/**/*",
-      "electron/**/*"
+      "electron/**/*",
+      "node_modules/tesseract.js/**/*",
+      "node_modules/tesseract.js-core/**/*",
+      "node_modules/sharp/**/*",
+      "node_modules/@img/**/*"
     ],
     "extraResources": [
       {

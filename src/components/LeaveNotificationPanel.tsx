@@ -1,5 +1,3 @@
-import { format } from 'date-fns'
-import { ko } from 'date-fns/locale/ko'
 import { useData } from '../context/DataContext'
 import { buildLeaveNotificationRows } from '../lib/hrEngine'
 import {
@@ -29,7 +27,6 @@ export function LeaveNotificationPanel() {
     <Card
       code="4-2"
       title="휴직자현황(통보)"
-      desc="2. 휴직현황(2-1)과 동일한 산출 목록에 직급을 더했습니다. 기준일은 상단과 같습니다. 엑셀은 폰트 10·가운데 정렬·열 너비·테두리·머리글 연한 회색으로 저장됩니다."
       actions={
         <button
           type="button"
@@ -43,16 +40,7 @@ export function LeaveNotificationPanel() {
         </button>
       }
     >
-      <p className="text-sm text-slate-600">
-        기준일:{' '}
-        <span className="font-semibold text-slate-800">
-          {format(baseDate, 'yyyy년 M월 d일 (EEE)', { locale: ko })}
-        </span>
-        {' · '}
-        저장 파일명: <span className="font-mono text-sm text-cyan-900">{fileName}</span>
-      </p>
-
-      <div className="mt-4">
+      <div>
         <SimpleTable
           cols={[
             { key: 'seq', label: '연번' },

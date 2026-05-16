@@ -57,7 +57,7 @@ export function CopyableStackedBar({
   }
 
   return (
-    <div className="mt-6 space-y-2">
+    <div className="mt-6 w-full space-y-2">
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
@@ -135,7 +135,7 @@ export function CopyableSimpleBar({
   }
 
   return (
-    <div className="mt-6 space-y-2">
+    <div className="mt-6 w-full space-y-2">
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
@@ -209,7 +209,7 @@ export function CopyableYearRankChart({
   }
 
   return (
-    <div className="mt-6 space-y-2">
+    <div className="mt-6 w-full space-y-2">
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"

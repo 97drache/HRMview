@@ -3,7 +3,6 @@ import type { ReactNode } from 'react'
 export function Card({
   code,
   title,
-  desc,
   actions,
   children,
 }: {
@@ -14,7 +13,7 @@ export function Card({
   children: ReactNode
 }) {
   return (
-    <section className="rounded-xl border border-slate-200/90 bg-white p-5 shadow-sm">
+    <section className="w-full rounded-xl border border-slate-200/90 bg-white p-5 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="inline-flex items-center gap-2.5">
@@ -23,11 +22,10 @@ export function Card({
             </span>
             <h2 className="text-lg font-semibold tracking-tight text-slate-900">{title}</h2>
           </div>
-          {desc ? <p className="mt-1.5 text-sm leading-relaxed text-slate-500">{desc}</p> : null}
         </div>
         {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
       </div>
-      <div className="mt-4">{children}</div>
+      <div className="mt-4 w-full min-w-0">{children}</div>
     </section>
   )
 }
@@ -41,12 +39,18 @@ export function SimpleTable({
 }) {
   const n = cols.length || 1
   const defaultPct = `${(100 / n).toFixed(3)}%`
+  const wide = n > 6
   return (
-    <div className="overflow-x-auto rounded-lg border border-slate-200/90 bg-white shadow-sm">
-      <table className="w-full min-w-[520px] table-fixed border-collapse text-sm">
+    <div className="w-full overflow-x-auto rounded-lg border border-slate-200/90 bg-white shadow-sm">
+      <table
+        className={[
+          'w-full border-collapse text-sm',
+          wide ? 'min-w-[720px] table-auto' : 'table-fixed',
+        ].join(' ')}
+      >
         <colgroup>
           {cols.map((c) => (
-            <col key={c.key} style={{ width: c.width ?? defaultPct }} />
+            <col key={c.key} style={{ width: c.width ?? (wide ? undefined : defaultPct) }} />
           ))}
         </colgroup>
         <thead className="border-b border-slate-200 bg-slate-50/90">
