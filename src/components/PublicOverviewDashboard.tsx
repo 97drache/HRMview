@@ -21,41 +21,61 @@ const SKY = '#38bdf8'
 
 export type PublicHeadcountNav = 'home' | 'p-1-1' | 'p-1-2' | 'p-1-3' | 'p-1-4' | 'p-1-5'
 
-function Kpi({
+function StatCard({
   label,
   value,
-  hint,
-  accent,
+  sub,
+  accent = 'teal',
 }: {
   label: string
-  value: string | number
-  hint?: string
-  accent?: 'default' | 'violet'
+  value: string
+  sub?: string
+  accent?: 'teal' | 'violet' | 'slate'
 }) {
-  const ring = accent === 'violet' ? 'ring-violet-500/20' : 'ring-teal-500/20'
+  const accentBar =
+    accent === 'violet' ? 'from-violet-500 to-indigo-500' : accent === 'slate' ? 'from-slate-500 to-slate-600' : 'from-teal-500 to-cyan-500'
   return (
-    <div
-      className={`rounded-xl border border-slate-200 bg-white p-4 shadow-sm ring-1 ${ring} transition-shadow hover:shadow-md`}
-    >
-      <div className="text-[11px] font-medium uppercase tracking-wide text-slate-500">{label}</div>
-      <div className="mt-1.5 tabular-nums text-2xl font-semibold tracking-tight text-slate-900">{value}</div>
-      {hint ? <div className="mt-1 text-xs text-slate-500">{hint}</div> : null}
+    <div className="relative overflow-hidden rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-900/5">
+      <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${accentBar}`} />
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+      <p className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-slate-900">{value}</p>
+      {sub ? <p className="mt-1.5 text-xs leading-snug text-slate-500">{sub}</p> : null}
     </div>
+  )
+}
+
+function ChartShell({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string
+  subtitle?: string
+  children: React.ReactNode
+}) {
+  return (
+    <section className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-900/5">
+      <div className="border-b border-slate-100 px-4 py-3 sm:px-5">
+        <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+        {subtitle ? <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p> : null}
+      </div>
+      <div className="h-[252px] w-full p-2 sm:h-[300px] sm:p-4">{children}</div>
+    </section>
   )
 }
 
 export function PublicOverviewDashboard({
   snap,
-  onNavigate,
 }: {
   snap: PublicHeadcountSnapshotV1
-  onNavigate: (k: Exclude<PublicHeadcountNav, 'home'>) => void
+  onNavigate?: (k: Exclude<PublicHeadcountNav, 'home'>) => void
 }) {
   const jg = snap.jobGender
   const total = jg.reduce((a, r) => a + r.total, 0)
   const male = jg.reduce((a, r) => a + r.male, 0)
   const female = jg.reduce((a, r) => a + r.female, 0)
   const sumRow = snap.genderEmployment.find((r) => r.label === '계')
+  const femalePct = total > 0 ? Math.round((female / total) * 100) : 0
 
   const baseDate = parseISO(snap.baseDate)
 
@@ -66,133 +86,113 @@ export function PublicOverviewDashboard({
 
   const barData = jg.map((r) => ({ name: r.job, 남: r.male, 여: r.female }))
 
-  const quick: { key: PublicHeadcountNav; label: string }[] = [
-    { key: 'p-1-1', label: '1-1 직종별' },
-    { key: 'p-1-2', label: '1-2 남녀·고용' },
-    { key: 'p-1-3', label: '1-3 연도·직급' },
-    { key: 'p-1-4', label: '1-4 월초·월말' },
-    { key: 'p-1-5', label: '1-5 공로연수' },
-  ]
-
   return (
-    <div className="w-full space-y-6">
-      <section className="overflow-hidden rounded-2xl bg-slate-900 text-white shadow-xl">
-        <div className="relative px-6 py-8 sm:px-8 sm:py-10">
-          <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-teal-500/20 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-20 left-1/3 h-40 w-40 rounded-full bg-sky-500/15 blur-3xl" />
-          <div className="relative">
-            <p className="text-sm font-medium text-slate-400">
-              기준일{' '}
-              <time dateTime={snap.baseDate}>
-                {format(baseDate, 'yyyy년 M월 d일 (EEE)', { locale: ko })}
-              </time>
-            </p>
-            <div className="mt-3 flex flex-wrap items-end gap-4">
-              <div className="tabular-nums text-5xl font-semibold tracking-tight sm:text-6xl">{total}</div>
-              <div className="pb-1 text-lg text-slate-300">명 재직</div>
+    <div className="w-full space-y-4 sm:space-y-6">
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-teal-900 px-5 py-7 text-white shadow-xl sm:px-8 sm:py-9">
+        <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-teal-400/25 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-16 left-0 h-32 w-32 rounded-full bg-sky-400/20 blur-3xl" />
+        <div className="relative">
+          <p className="text-xs font-medium text-teal-200/90">
+            {format(baseDate, 'yyyy년 M월 d일 (EEE)', { locale: ko })} 기준
+          </p>
+          <div className="mt-4 flex items-end gap-2">
+            <span className="text-6xl font-bold tabular-nums leading-none tracking-tight sm:text-7xl">
+              {total}
+            </span>
+            <span className="pb-2 text-lg font-medium text-slate-300">명 재직</span>
+          </div>
+          <div className="mt-5">
+            <div className="flex justify-between text-xs text-slate-300">
+              <span>남 {male}</span>
+              <span>여 {female} ({femalePct}%)</span>
             </div>
-            <p className="mt-4 max-w-2xl text-sm leading-relaxed text-slate-400">
-              인원현황 핵심 숫자와 추이를 한 화면에 모았습니다. 상세 표·차트는 아래 바로가기 또는 왼쪽 메뉴에서
-              확인할 수 있습니다.
-            </p>
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/15">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-teal-400 to-sky-400 transition-all"
+                style={{ width: `${femalePct}%` }}
+              />
+            </div>
           </div>
         </div>
       </section>
 
-      <div className="grid w-full gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Kpi
-          label="남 · 여"
-          value={`${male} · ${female}`}
-          hint={total > 0 ? `여성 비중 ${Math.round((female / total) * 100)}%` : undefined}
-        />
-        <Kpi
-          label="정규직 · 무기직"
+      <div className="grid grid-cols-2 gap-3">
+        <StatCard
+          label="정규 · 무기"
           value={sumRow ? `${sumRow.regular} · ${sumRow.mugi}` : '—'}
-          hint="1-2와 동일 기준"
+          sub="고용 형태"
+          accent="slate"
         />
-        <Kpi
+        <StatCard
           label="공로연수"
           value={`${snap.meritTrainingCount}명`}
-          hint="기준일 구간 (1-5)"
+          sub="기준일 구간"
           accent="violet"
         />
-        <Kpi
-          label="연말 추이"
+        <StatCard
+          label="연말 인원"
           value={trend.length ? `${trend[trend.length - 1]!.count}명` : '—'}
-          hint={trend.length ? `${trend[trend.length - 1]!.year}년 연말` : undefined}
+          sub={trend.length ? `${trend[trend.length - 1]!.year}년` : undefined}
+          accent="teal"
+        />
+        <StatCard
+          label="직종 수"
+          value={`${jg.length}개`}
+          sub="행정·기술·기능 등"
+          accent="slate"
         />
       </div>
 
-      <div className="grid w-full gap-5 lg:grid-cols-2">
-        <div className="flex min-w-0 flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <h3 className="text-sm font-semibold text-slate-900">직종별 인원 (남·여)</h3>
-          <p className="mt-0.5 text-xs text-slate-500">1-1과 동일 · 스택 막대</p>
-          <div className="mt-3 h-[min(280px,42vw)] min-h-[220px] w-full flex-1">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={barData} margin={{ top: 8, right: 12, left: 4, bottom: 4 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
-                <XAxis
-                  dataKey="name"
-                  tick={{ fill: AXIS, fontSize: 11 }}
-                  interval={0}
-                  angle={-18}
-                  textAnchor="end"
-                  height={52}
-                />
-                <YAxis allowDecimals={false} tick={{ fill: AXIS, fontSize: 11 }} width={36} />
-                <Tooltip
-                  contentStyle={{
-                    borderRadius: 8,
-                    border: '1px solid #e2e8f0',
-                    fontSize: 12,
-                  }}
-                />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Bar dataKey="남" stackId="a" fill={TEAL} />
-                <Bar dataKey="여" stackId="a" fill={SKY} radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+      <ChartShell title="직종별 인원" subtitle="남·여 스택">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={barData} margin={{ top: 8, right: 8, left: -8, bottom: 48 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
+            <XAxis
+              dataKey="name"
+              tick={{ fill: AXIS, fontSize: 10 }}
+              interval={0}
+              angle={-35}
+              textAnchor="end"
+              height={56}
+            />
+            <YAxis allowDecimals={false} tick={{ fill: AXIS, fontSize: 10 }} width={28} />
+            <Tooltip
+              contentStyle={{
+                borderRadius: 12,
+                border: '1px solid #e2e8f0',
+                fontSize: 12,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+              }}
+            />
+            <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
+            <Bar dataKey="남" stackId="a" fill={TEAL} />
+            <Bar dataKey="여" stackId="a" fill={SKY} radius={[4, 4, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </ChartShell>
 
-        <div className="flex min-w-0 flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <h3 className="text-sm font-semibold text-slate-900">연도별 재직 인원</h3>
-          <p className="mt-0.5 text-xs text-slate-500">연말 스냅샷 (1-3 합계)</p>
-          <div className="mt-3 h-[min(280px,42vw)] min-h-[220px] w-full flex-1">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={trend} margin={{ top: 8, right: 12, left: 4, bottom: 4 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke={GRID} />
-                <XAxis dataKey="year" tick={{ fill: AXIS, fontSize: 11 }} />
-                <YAxis allowDecimals={false} tick={{ fill: AXIS, fontSize: 11 }} width={40} />
-                <Tooltip
-                  contentStyle={{
-                    borderRadius: 8,
-                    border: '1px solid #e2e8f0',
-                    fontSize: 12,
-                  }}
-                />
-                <Line type="monotone" dataKey="count" name="재직" stroke={TEAL} strokeWidth={2.5} dot={{ r: 4 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </div>
+      <ChartShell title="연도별 재직" subtitle="연말 스냅샷">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={trend} margin={{ top: 8, right: 8, left: -4, bottom: 8 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke={GRID} />
+            <XAxis dataKey="year" tick={{ fill: AXIS, fontSize: 10 }} />
+            <YAxis allowDecimals={false} tick={{ fill: AXIS, fontSize: 10 }} width={32} />
+            <Tooltip
+              contentStyle={{
+                borderRadius: 12,
+                border: '1px solid #e2e8f0',
+                fontSize: 12,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+              }}
+            />
+            <Line type="monotone" dataKey="count" name="재직" stroke={TEAL} strokeWidth={2.5} dot={{ r: 3 }} />
+          </LineChart>
+        </ResponsiveContainer>
+      </ChartShell>
 
-      <div className="w-full rounded-xl border border-slate-200 bg-slate-50/80 p-4">
-        <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">바로 가기</div>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {quick.map((q) => (
-            <button
-              key={q.key}
-              type="button"
-              onClick={() => onNavigate(q.key)}
-              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-800 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50"
-            >
-              {q.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <p className="hidden text-center text-xs text-slate-500 lg:block">
+        상세 표·차트는 왼쪽 메뉴에서 1-1 ~ 1-5를 선택하세요.
+      </p>
     </div>
   )
 }
