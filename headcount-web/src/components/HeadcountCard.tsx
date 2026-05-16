@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-/** 공개 웹 전용 — 얇은 검은 테두리 대신 부드러운 카드 */
+/** 공개 웹 전용 — 스타벅스 톤 카드 */
 export function HeadcountCard({
   code,
   title,
@@ -11,16 +11,16 @@ export function HeadcountCard({
   children: ReactNode
 }) {
   return (
-    <section className="mx-auto w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-md ring-1 ring-slate-900/[0.06]">
-      <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-5 py-4 text-center">
+    <section className="mx-auto mb-2 w-full max-w-2xl overflow-hidden rounded-3xl bg-[#FAF8F5] shadow-[0_8px_28px_rgba(30,57,50,0.08)] ring-1 ring-[#00704A]/10">
+      <div className="border-b border-[#E0D9CF]/80 bg-gradient-to-r from-[#F2F0EB] to-[#FAF8F5] px-5 py-4 text-center">
         <div className="flex flex-wrap items-center justify-center gap-2.5">
-          <span className="rounded-lg bg-slate-900 px-2 py-1 font-mono text-[11px] font-bold text-white">
+          <span className="rounded-xl bg-[#00704A] px-2.5 py-1 font-mono text-[11px] font-bold text-white shadow-sm">
             {code}
           </span>
-          <h2 className="text-base font-semibold text-slate-900 sm:text-lg">{title}</h2>
+          <h2 className="text-base font-bold text-[#1E3932] sm:text-lg">{title}</h2>
         </div>
       </div>
-      <div className="flex w-full flex-col items-center gap-6 p-5 sm:p-6">{children}</div>
+      <div className="flex w-full flex-col items-center gap-8 p-5 sm:p-7">{children}</div>
     </section>
   )
 }

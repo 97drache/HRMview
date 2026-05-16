@@ -4,6 +4,7 @@ import { PublicOverviewDashboard } from '../../src/components/PublicOverviewDash
 import { SimpleTable } from '../../src/components/Ui'
 import type { PublicHeadcountSnapshotV1 } from '../../src/lib/headcountPublicSnapshot'
 import { RANK_BAND_ORDER } from '../../src/lib/jobClassification'
+import { SB } from '../../src/lib/headcountWebTheme'
 import { BottomNav } from './components/BottomNav'
 import { ChartPanel } from './components/ChartPanel'
 import { HeadcountCard } from './components/HeadcountCard'
@@ -93,32 +94,32 @@ export function App() {
 
   if (!snap || yearForMonth == null) {
     return (
-      <div className="flex min-h-dvh items-center justify-center text-sm text-slate-500">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-teal-600 border-t-transparent" />
+      <div className="flex min-h-dvh items-center justify-center text-sm text-[#6F4E37]">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#00704A] border-t-transparent" />
         <span className="ml-3">불러오는 중…</span>
       </div>
     )
   }
 
   return (
-    <div className="min-h-dvh w-full bg-[#f4f6f9] pb-[calc(4.75rem+env(safe-area-inset-bottom))] lg:pb-8">
-      <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/85 backdrop-blur-md">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
+    <div className="min-h-dvh w-full pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-8">
+      <header className="sticky top-0 z-30 border-b border-[#E0D9CF] bg-[#FAF8F5]/90 backdrop-blur-md">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3.5">
           <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-teal-700">HRM</p>
-            <h1 className="truncate text-base font-bold text-slate-900 sm:text-lg">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#00704A]">HRM</p>
+            <h1 className="truncate text-base font-bold text-[#1E3932] sm:text-lg">
               {active === 'home' ? '한눈에 보기' : ACTIVE_LABEL[active]}
             </h1>
           </div>
-          <time className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 font-mono text-[11px] font-semibold text-slate-700">
+          <time className="shrink-0 rounded-full bg-[#F2F0EB] px-3 py-1 font-mono text-[11px] font-semibold text-[#3D2817] ring-1 ring-[#00704A]/15">
             {snap.baseDate}
           </time>
         </div>
       </header>
 
-      <div className="mx-auto flex w-full max-w-6xl gap-6 px-3 pt-4 sm:px-5 lg:px-6">
+      <div className="mx-auto flex w-full max-w-6xl gap-6 px-3 pt-5 sm:px-5 lg:px-6">
         <nav className="hidden w-44 shrink-0 lg:block">
-          <div className="sticky top-[4.25rem] space-y-1 rounded-2xl bg-white p-2 shadow-sm ring-1 ring-slate-900/5">
+          <div className="sticky top-[4.5rem] space-y-1.5 rounded-3xl bg-[#FAF8F5] p-2.5 shadow-[0_8px_24px_rgba(30,57,50,0.08)] ring-1 ring-[#00704A]/10">
             {HEADCOUNT_NAV.map((it) => {
               const on = active === it.key
               return (
@@ -128,7 +129,7 @@ export function App() {
                   onClick={() => selectNav(it.key)}
                   className={[
                     'flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-colors',
-                    on ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-50',
+                    on ? 'bg-[#00704A] text-white shadow-sm' : 'text-[#6F4E37] hover:bg-[#F2F0EB]',
                   ].join(' ')}
                 >
                   <span className="font-mono text-[11px] font-bold opacity-80">{it.code}</span>
@@ -146,7 +147,7 @@ export function App() {
           ].join(' ')}
         >
           {snap.empty ? (
-            <p className="mb-4 w-full max-w-2xl rounded-2xl bg-amber-50 px-4 py-3 text-center text-sm text-amber-950 ring-1 ring-amber-200">
+            <p className="mb-4 w-full max-w-2xl rounded-2xl bg-[#FFF8E7] px-4 py-3 text-center text-sm text-[#3D2817] ring-1 ring-[#CBA258]/40">
               스냅샷이 비어 있습니다. 로컬에서 export 후 다시 배포해 주세요.
             </p>
           ) : null}
@@ -195,8 +196,8 @@ function renderPanel(
             data={jg.map((r) => ({ 직종: r.job, 남: r.male, 여: r.female }))}
             xKey="직종"
             series={[
-              { key: '남', name: '남', color: '#0d9488' },
-              { key: '여', name: '여', color: '#38bdf8' },
+              { key: '남', name: '남', color: SB.green },
+              { key: '여', name: '여', color: SB.mintSoft },
             ]}
             height={240}
           />
@@ -234,8 +235,8 @@ function renderPanel(
             }))}
             xKey="구분"
             series={[
-              { key: '정규직', name: '정규', color: '#0d9488' },
-              { key: '무기직', name: '무기', color: '#38bdf8' },
+              { key: '정규직', name: '정규', color: SB.green },
+              { key: '무기직', name: '무기', color: SB.gold },
             ]}
             height={240}
           />
@@ -275,10 +276,10 @@ function renderPanel(
   if (active === 'p-1-4') {
     return (
       <HeadcountCard code="1-4" title="월초·월말">
-        <label className="flex items-center justify-center gap-2 text-sm font-medium text-slate-700">
+        <label className="flex items-center justify-center gap-2 text-sm font-medium text-[#3D2817]">
           연도
           <select
-            className="rounded-xl border-0 bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-200"
+            className="rounded-xl border-0 bg-[#F2F0EB] px-3 py-2 text-sm font-semibold text-[#1E3932] ring-1 ring-[#00704A]/20"
             value={yearForMonth}
             onChange={(e) => setYearForMonth(Number(e.target.value))}
           >
@@ -308,10 +309,10 @@ function renderPanel(
 
   return (
     <HeadcountCard code="1-5" title="공로연수">
-      <div className="flex flex-col items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 px-6 py-14 text-center text-white shadow-lg">
-        <p className="text-sm font-medium text-violet-100">기준일 구간 인원</p>
-        <p className="mt-3 text-6xl font-bold tabular-nums">{snap.meritTrainingCount}</p>
-        <p className="mt-2 text-sm text-violet-100">명</p>
+      <div className="flex flex-col items-center justify-center rounded-3xl bg-gradient-to-br from-[#1E3932] via-[#006241] to-[#00704A] px-6 py-14 text-center text-white shadow-[0_12px_32px_rgba(30,57,50,0.25)]">
+        <p className="text-sm font-medium text-[#D4E9E2]">기준일 구간 인원</p>
+        <p className="mt-3 text-6xl font-bold tabular-nums text-white">{snap.meritTrainingCount}</p>
+        <p className="mt-2 text-sm text-[#D4E9E2]">명</p>
       </div>
     </HeadcountCard>
   )
