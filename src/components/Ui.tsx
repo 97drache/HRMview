@@ -33,32 +33,59 @@ export function Card({
 export function SimpleTable({
   cols,
   rows,
+  layout = 'stretch',
 }: {
   cols: { key: string; label: string; width?: string }[]
   rows: Record<string, ReactNode>[]
+  layout?: 'stretch' | 'centered'
 }) {
   const n = cols.length || 1
   const defaultPct = `${(100 / n).toFixed(3)}%`
   const wide = n > 6
+  const centered = layout === 'centered'
+  const shellMax = centered
+    ? wide
+      ? 'max-w-6xl'
+      : n <= 4
+        ? 'max-w-lg sm:max-w-xl'
+        : 'max-w-2xl'
+    : ''
   return (
-    <div className="w-full overflow-x-auto rounded-lg border border-slate-200/90 bg-white shadow-sm">
+    <div
+      className={[
+        'w-full overflow-x-auto rounded-lg border border-slate-200/90 bg-white shadow-sm',
+        centered ? `mx-auto ${shellMax}` : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
       <table
         className={[
           'w-full border-collapse text-sm',
-          wide ? 'min-w-[720px] table-auto' : 'table-fixed',
-        ].join(' ')}
+          wide ? 'min-w-[640px]' : '',
+          centered || wide ? 'table-auto' : 'table-fixed',
+        ]
+          .filter(Boolean)
+          .join(' ')}
       >
-        <colgroup>
-          {cols.map((c) => (
-            <col key={c.key} style={{ width: c.width ?? (wide ? undefined : defaultPct) }} />
-          ))}
-        </colgroup>
+        {!wide ? (
+          <colgroup>
+            {cols.map((c) => (
+              <col
+                key={c.key}
+                style={
+                  c.width ? { width: c.width } : centered ? undefined : { width: defaultPct }
+                }
+              />
+            ))}
+          </colgroup>
+        ) : null}
         <thead className="border-b border-slate-200 bg-slate-50/90">
           <tr>
             {cols.map((c) => (
               <th
                 key={c.key}
-                className="px-2 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wide text-slate-500"
+                className="px-3 py-3 text-center text-[11px] font-semibold uppercase tracking-wide text-slate-500"
               >
                 {c.label}
               </th>
@@ -81,7 +108,7 @@ export function SimpleTable({
                 {cols.map((c) => (
                   <td
                     key={c.key}
-                    className="break-words px-2 py-2.5 text-center align-middle text-slate-800"
+                    className="break-words px-3 py-2.5 text-center align-middle text-sm tabular-nums text-slate-800"
                   >
                     {r[c.key]}
                   </td>

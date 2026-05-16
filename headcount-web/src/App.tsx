@@ -1,20 +1,16 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { CopyableStackedBar, CopyableYearRankChart } from '../../src/components/CopyableChart'
-import { PublicOverviewDashboard, type PublicHeadcountNav } from '../../src/components/PublicOverviewDashboard'
+import { PublicOverviewDashboard } from '../../src/components/PublicOverviewDashboard'
 import { Card, SimpleTable } from '../../src/components/Ui'
 import type { PublicHeadcountSnapshotV1 } from '../../src/lib/headcountPublicSnapshot'
 import { RANK_BAND_ORDER } from '../../src/lib/jobClassification'
-
-type Nav = 'home' | PublicHeadcountNav
-
-const NAV: { key: Nav; code: string; label: string }[] = [
-  { key: 'home', code: '1-0', label: '한눈에 보기' },
-  { key: 'p-1-1', code: '1-1', label: '직종별' },
-  { key: 'p-1-2', code: '1-2', label: '남녀·고용' },
-  { key: 'p-1-3', code: '1-3', label: '연도·직급' },
-  { key: 'p-1-4', code: '1-4', label: '월초·월말' },
-  { key: 'p-1-5', code: '1-5', label: '공로연수' },
-]
+import {
+  ensureHomeHash,
+  HEADCOUNT_NAV,
+  readNavFromHash,
+  writeNavHash,
+  type HeadcountNav,
+} from './nav'
 
 function isSnapshot(v: unknown): v is PublicHeadcountSnapshotV1 {
   if (!v || typeof v !== 'object') return false
@@ -23,10 +19,22 @@ function isSnapshot(v: unknown): v is PublicHeadcountSnapshotV1 {
 }
 
 export function App() {
-  const [active, setActive] = useState<Nav>('home')
+  const [active, setActive] = useState<HeadcountNav>(() => readNavFromHash())
   const [snap, setSnap] = useState<PublicHeadcountSnapshotV1 | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [yearForMonth, setYearForMonth] = useState<number | null>(null)
+
+  const selectNav = useCallback((key: HeadcountNav) => {
+    setActive(key)
+    writeNavHash(key)
+  }, [])
+
+  useEffect(() => {
+    ensureHomeHash()
+    const onHash = () => setActive(readNavFromHash())
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -114,13 +122,13 @@ export function App() {
 
       <div className="flex min-h-0 w-full flex-1 flex-col gap-4 lg:flex-row">
         <nav className="flex w-full shrink-0 flex-wrap gap-2 lg:w-52 lg:flex-col lg:flex-nowrap">
-          {NAV.map((it) => {
+          {HEADCOUNT_NAV.map((it) => {
             const on = active === it.key
             return (
               <button
                 key={it.key}
                 type="button"
-                onClick={() => setActive(it.key)}
+                onClick={() => selectNav(it.key)}
                 className={[
                   'flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-sm font-medium transition-colors',
                   on
@@ -144,15 +152,14 @@ export function App() {
           })}
         </nav>
 
-        <main className="min-w-0 w-full flex-1 space-y-4">
-          {active === 'home' ? (
-            <PublicOverviewDashboard
-              snap={snap}
-              onNavigate={(k) => setActive(k)}
-            />
-          ) : (
-            renderPanel(active, snap, yearForMonth, setYearForMonth, yearOptions, monthRows)
-          )}
+        <main className="flex min-w-0 w-full flex-1 flex-col items-center space-y-4">
+          <div className="w-full max-w-6xl">
+            {active === 'home' ? (
+              <PublicOverviewDashboard snap={snap} onNavigate={selectNav} />
+            ) : (
+              renderPanel(active, snap, yearForMonth, setYearForMonth, yearOptions, monthRows)
+            )}
+          </div>
         </main>
       </div>
     </div>
@@ -160,11 +167,17 @@ export function App() {
 }
 
 function PanelBlock({ children }: { children: ReactNode }) {
-  return <div className="w-full space-y-4 [&>*]:w-full">{children}</div>
+  return (
+    <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-4 [&>*]:w-full">{children}</div>
+  )
+}
+
+function ChartBlock({ children }: { children: ReactNode }) {
+  return <div className="mx-auto mt-4 w-full max-w-4xl">{children}</div>
 }
 
 function renderPanel(
-  active: PublicHeadcountNav,
+  active: Exclude<HeadcountNav, 'home'>,
   snap: PublicHeadcountSnapshotV1,
   yearForMonth: number,
   setYearForMonth: (y: number) => void,
@@ -178,8 +191,9 @@ function renderPanel(
       <PanelBlock>
         <Card code="1-1" title="직종별 현황">
           <SimpleTable
+            layout="centered"
             cols={[
-              { key: 'job', label: '직종', width: '28%' },
+              { key: 'job', label: '직종' },
               { key: 'male', label: '남' },
               { key: 'female', label: '여' },
               { key: 'total', label: '계' },
@@ -194,15 +208,17 @@ function renderPanel(
               { job: '계', male: t.m, female: t.f, total: t.x },
             ]}
           />
-          <CopyableStackedBar
-            title="직종별 인원 (남·여 누적)"
-            data={jg.map((r) => ({ 직종: r.job, 남: r.male, 여: r.female }))}
-            xKey="직종"
-            series={[
-              { key: '남', name: '남', color: '#0d9488' },
-              { key: '여', name: '여', color: '#38bdf8' },
-            ]}
-          />
+          <ChartBlock>
+            <CopyableStackedBar
+              title="직종별 인원 (남·여 누적)"
+              data={jg.map((r) => ({ 직종: r.job, 남: r.male, 여: r.female }))}
+              xKey="직종"
+              series={[
+                { key: '남', name: '남', color: '#0d9488' },
+                { key: '여', name: '여', color: '#38bdf8' },
+              ]}
+            />
+          </ChartBlock>
         </Card>
       </PanelBlock>
     )
@@ -214,8 +230,9 @@ function renderPanel(
       <PanelBlock>
         <Card code="1-2" title="남녀·고용 형태">
           <SimpleTable
+            layout="centered"
             cols={[
-              { key: 'label', label: '구분', width: '22%' },
+              { key: 'label', label: '구분' },
               { key: 'regular', label: '정규직' },
               { key: 'mugi', label: '무기직' },
               { key: 'total', label: '계' },
@@ -227,20 +244,22 @@ function renderPanel(
               total: r.total,
             }))}
           />
-          <CopyableStackedBar
-            title="구분별 정규직·무기직"
-            data={ge.filter((r) => r.label !== '계').map((r) => ({
-              구분: r.label,
-              정규직: r.regular,
-              무기직: r.mugi,
-            }))}
-            xKey="구분"
-            series={[
-              { key: '정규직', name: '정규직', color: '#0d9488' },
-              { key: '무기직', name: '무기직', color: '#38bdf8' },
-            ]}
-            height={280}
-          />
+          <ChartBlock>
+            <CopyableStackedBar
+              title="구분별 정규직·무기직"
+              data={ge.filter((r) => r.label !== '계').map((r) => ({
+                구분: r.label,
+                정규직: r.regular,
+                무기직: r.mugi,
+              }))}
+              xKey="구분"
+              series={[
+                { key: '정규직', name: '정규직', color: '#0d9488' },
+                { key: '무기직', name: '무기직', color: '#38bdf8' },
+              ]}
+              height={280}
+            />
+          </ChartBlock>
         </Card>
       </PanelBlock>
     )
@@ -267,8 +286,10 @@ function renderPanel(
     return (
       <PanelBlock>
         <Card code="1-3" title="연도별 인원(연말)·직급 구분">
-          <SimpleTable cols={cols} rows={rows} />
-          <CopyableYearRankChart title="연도별 직급 구성 (연말)" data={chartData} keys={chartKeys} />
+          <SimpleTable layout="centered" cols={cols} rows={rows} />
+          <ChartBlock>
+            <CopyableYearRankChart title="연도별 직급 구성 (연말)" data={chartData} keys={chartKeys} />
+          </ChartBlock>
         </Card>
       </PanelBlock>
     )
@@ -293,8 +314,9 @@ function renderPanel(
             </select>
           </div>
           <SimpleTable
+            layout="centered"
             cols={[
-              { key: 'm', label: '월', width: '20%' },
+              { key: 'm', label: '월' },
               { key: 'ms', label: '월초' },
               { key: 'me', label: '월말' },
             ]}

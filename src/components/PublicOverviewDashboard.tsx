@@ -19,7 +19,7 @@ const GRID = '#e2e8f0'
 const TEAL = '#0d9488'
 const SKY = '#38bdf8'
 
-export type PublicHeadcountNav = 'p-1-1' | 'p-1-2' | 'p-1-3' | 'p-1-4' | 'p-1-5'
+export type PublicHeadcountNav = 'home' | 'p-1-1' | 'p-1-2' | 'p-1-3' | 'p-1-4' | 'p-1-5'
 
 function Kpi({
   label,
@@ -49,7 +49,7 @@ export function PublicOverviewDashboard({
   onNavigate,
 }: {
   snap: PublicHeadcountSnapshotV1
-  onNavigate: (k: PublicHeadcountNav) => void
+  onNavigate: (k: Exclude<PublicHeadcountNav, 'home'>) => void
 }) {
   const jg = snap.jobGender
   const total = jg.reduce((a, r) => a + r.total, 0)
