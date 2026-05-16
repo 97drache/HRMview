@@ -10,7 +10,7 @@ lerna-debug.log*
 node_modules
 dist
 headcount-web/dist
-headcount-web/public/headcount-snapshot.json
+# headcount-snapshot.json 은 로컬 집계 후 커밋해 Vercel 정적 배포에 반영 (원본 엑셀은 data/* 로 제외)
 dist-ssr
 release
 out-app
