@@ -139,9 +139,14 @@ export function App() {
           </div>
         </nav>
 
-        <main className="min-w-0 flex-1 pb-4">
+        <main
+          className={[
+            'min-w-0 flex-1 pb-4',
+            active === 'home' ? 'flex justify-center' : 'flex flex-col items-center',
+          ].join(' ')}
+        >
           {snap.empty ? (
-            <p className="mb-4 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-950 ring-1 ring-amber-200">
+            <p className="mb-4 w-full max-w-2xl rounded-2xl bg-amber-50 px-4 py-3 text-center text-sm text-amber-950 ring-1 ring-amber-200">
               스냅샷이 비어 있습니다. 로컬에서 export 후 다시 배포해 주세요.
             </p>
           ) : null}
@@ -270,7 +275,7 @@ function renderPanel(
   if (active === 'p-1-4') {
     return (
       <HeadcountCard code="1-4" title="월초·월말">
-        <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+        <label className="flex items-center justify-center gap-2 text-sm font-medium text-slate-700">
           연도
           <select
             className="rounded-xl border-0 bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-200"

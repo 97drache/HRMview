@@ -33,13 +33,19 @@ function StatCard({
   accent?: 'teal' | 'violet' | 'slate'
 }) {
   const accentBar =
-    accent === 'violet' ? 'from-violet-500 to-indigo-500' : accent === 'slate' ? 'from-slate-500 to-slate-600' : 'from-teal-500 to-cyan-500'
+    accent === 'violet'
+      ? 'from-violet-500 to-indigo-500'
+      : accent === 'slate'
+        ? 'from-slate-500 to-slate-600'
+        : 'from-teal-500 to-cyan-500'
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-900/5">
+    <div className="relative overflow-hidden rounded-2xl bg-white px-5 py-5 text-center shadow-md ring-1 ring-slate-900/[0.06]">
       <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${accentBar}`} />
       <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
-      <p className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-slate-900">{value}</p>
-      {sub ? <p className="mt-1.5 text-xs leading-snug text-slate-500">{sub}</p> : null}
+      <p className="mt-3 text-2xl font-bold tabular-nums tracking-tight text-slate-900 sm:text-[1.65rem]">
+        {value}
+      </p>
+      {sub ? <p className="mt-2 text-xs leading-relaxed text-slate-500">{sub}</p> : null}
     </div>
   )
 }
@@ -54,12 +60,12 @@ function ChartShell({
   children: React.ReactNode
 }) {
   return (
-    <section className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-900/5">
-      <div className="border-b border-slate-100 px-4 py-3 sm:px-5">
+    <section className="overflow-hidden rounded-2xl bg-white shadow-md ring-1 ring-slate-900/[0.06]">
+      <div className="border-b border-slate-100 px-5 py-4 text-center">
         <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
-        {subtitle ? <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p> : null}
+        {subtitle ? <p className="mt-1 text-xs text-slate-500">{subtitle}</p> : null}
       </div>
-      <div className="h-[252px] w-full p-2 sm:h-[300px] sm:p-4">{children}</div>
+      <div className="h-[252px] w-full p-3 sm:h-[300px] sm:p-5">{children}</div>
     </section>
   )
 }
@@ -87,28 +93,31 @@ export function PublicOverviewDashboard({
   const barData = jg.map((r) => ({ name: r.job, 남: r.male, 여: r.female }))
 
   return (
-    <div className="w-full space-y-4 sm:space-y-6">
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-teal-900 px-5 py-7 text-white shadow-xl sm:px-8 sm:py-9">
+    <div className="mx-auto w-full max-w-xl space-y-6 sm:max-w-2xl sm:space-y-8">
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-teal-900 px-6 py-8 text-center shadow-xl sm:px-10 sm:py-10">
         <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-teal-400/25 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-16 left-0 h-32 w-32 rounded-full bg-sky-400/20 blur-3xl" />
         <div className="relative">
-          <p className="text-xs font-medium text-teal-200/90">
+          <p className="text-xs font-medium tracking-wide text-teal-200/95">
             {format(baseDate, 'yyyy년 M월 d일 (EEE)', { locale: ko })} 기준
           </p>
-          <div className="mt-4 flex items-end gap-2">
-            <span className="text-6xl font-bold tabular-nums leading-none tracking-tight sm:text-7xl">
+          <div className="mt-5 flex flex-col items-center gap-1">
+            <span
+              className="text-7xl font-extrabold tabular-nums leading-none tracking-tight text-teal-300 drop-shadow-[0_2px_24px_rgba(45,212,191,0.45)] sm:text-8xl"
+              style={{ textShadow: '0 0 40px rgba(94, 234, 212, 0.35)' }}
+            >
               {total}
             </span>
-            <span className="pb-2 text-lg font-medium text-slate-300">명 재직</span>
+            <span className="text-base font-semibold text-cyan-100/90">명 재직</span>
           </div>
-          <div className="mt-5">
-            <div className="flex justify-between text-xs text-slate-300">
+          <div className="mx-auto mt-7 max-w-xs">
+            <div className="flex justify-between text-xs font-medium text-slate-200">
               <span>남 {male}</span>
               <span>여 {female} ({femalePct}%)</span>
             </div>
-            <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/15">
+            <div className="mt-2.5 h-2.5 overflow-hidden rounded-full bg-white/20">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-teal-400 to-sky-400 transition-all"
+                className="h-full rounded-full bg-gradient-to-r from-teal-400 to-sky-300"
                 style={{ width: `${femalePct}%` }}
               />
             </div>
@@ -116,7 +125,7 @@ export function PublicOverviewDashboard({
         </div>
       </section>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-4 sm:gap-5">
         <StatCard
           label="정규 · 무기"
           value={sumRow ? `${sumRow.regular} · ${sumRow.mugi}` : '—'}

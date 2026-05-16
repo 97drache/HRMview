@@ -21,7 +21,7 @@ export function BottomNav({
       className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200/80 bg-white/90 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_30px_rgba(15,23,42,0.08)] backdrop-blur-md lg:hidden"
       aria-label="메뉴"
     >
-      <div className="flex gap-1 overflow-x-auto px-2 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="mx-auto grid max-w-lg grid-cols-6 gap-1 px-2 py-2 sm:max-w-xl">
         {HEADCOUNT_NAV.map((it) => {
           const on = active === it.key
           return (
@@ -30,7 +30,7 @@ export function BottomNav({
               type="button"
               onClick={() => onSelect(it.key)}
               className={[
-                'flex shrink-0 flex-col items-center gap-0.5 rounded-2xl px-3 py-2 transition-all',
+                'flex w-full flex-col items-center justify-center gap-0.5 rounded-2xl px-1 py-2 transition-all',
                 on
                   ? 'bg-slate-900 text-white shadow-md'
                   : 'text-slate-600 active:bg-slate-100',
@@ -44,7 +44,7 @@ export function BottomNav({
               >
                 {it.code}
               </span>
-              <span className="text-[11px] font-semibold leading-tight">
+              <span className="text-center text-[10px] font-semibold leading-tight sm:text-[11px]">
                 {SHORT[it.key] ?? it.label}
               </span>
             </button>
