@@ -15,4 +15,8 @@ contextBridge.exposeInMainWorld('hrmDesktop', {
   exportTripProofPdf: (payload) => ipcRenderer.invoke('hrm:export-trip-proof-pdf', payload),
   exportExpenseProofPdf: (payload) => ipcRenderer.invoke('hrm:export-expense-proof-pdf', payload),
   exportCareerPdf: (payload) => ipcRenderer.invoke('hrm:export-career-pdf', payload),
+  geminiStatus: () => ipcRenderer.invoke('hrm:gemini-status'),
+  geminiSaveKey: (payload) => ipcRenderer.invoke('hrm:gemini-save-key', payload),
+  geminiAnalyzeReceipt: (payload) => ipcRenderer.invoke('hrm:gemini-analyze-receipt', payload),
+  geminiParseVoice: (payload) => ipcRenderer.invoke('hrm:gemini-parse-voice', payload),
 })

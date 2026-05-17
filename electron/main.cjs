@@ -9,6 +9,12 @@ const { parseReceiptImageFiles } = require('./receiptParse.cjs')
 const { collectProofImages } = require('./proofImages.cjs')
 const { formatWonLine } = require('./koreanWon.cjs')
 const { prepareReceiptImage } = require('./receiptImagePrepare.cjs')
+const {
+  getGeminiStatus,
+  saveGeminiApiKey,
+  analyzeReceiptImages,
+  parseExpenseVoiceText,
+} = require('./gemini.cjs')
 
 function getDataDirectory() {
   if (app.isPackaged) {
@@ -123,6 +129,58 @@ function registerIpc() {
       fs.mkdirSync(path.join(root, dateFolder), { recursive: true })
     }
     return collectProofImages(root, dateFolder || undefined)
+  })
+
+  const geminiUserData = () => app.getPath('userData')
+
+  ipcMain.handle('hrm:gemini-status', () => getGeminiStatus(geminiUserData()))
+
+  ipcMain.handle('hrm:gemini-save-key', async (_e, payload) => {
+    try {
+      return saveGeminiApiKey(geminiUserData(), payload?.apiKey)
+    } catch (err) {
+      return { ok: false, message: err instanceof Error ? err.message : String(err) }
+    }
+  })
+
+  ipcMain.handle('hrm:gemini-analyze-receipt', async (_e, payload) => {
+    const dateFolder = String(payload?.dateFolder ?? '')
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateFolder)) {
+      return { ok: false, configured: true, message: '날짜는 yyyy-MM-dd 형식이어야 합니다.' }
+    }
+    try {
+      const root = ensureProofFolderPath()
+      const collected = collectProofImages(root, dateFolder)
+      const paths = collected.files.map((f) => f.fullPath)
+      const result = await analyzeReceiptImages(paths, geminiUserData())
+      if (!result.ok) return result
+      const amount = result.amount || 0
+      return {
+        ...result,
+        amountLine: amount > 0 ? formatWonLine(amount) : '',
+        bankAmount: amount > 0 ? amount.toLocaleString('ko-KR') : '',
+        folder: collected.folder,
+        imageCount: collected.files.length,
+      }
+    } catch (err) {
+      return {
+        ok: false,
+        configured: true,
+        message: err instanceof Error ? err.message : String(err),
+      }
+    }
+  })
+
+  ipcMain.handle('hrm:gemini-parse-voice', async (_e, payload) => {
+    try {
+      return await parseExpenseVoiceText(payload?.text, geminiUserData())
+    } catch (err) {
+      return {
+        ok: false,
+        configured: true,
+        message: err instanceof Error ? err.message : String(err),
+      }
+    }
   })
 
   ipcMain.handle('hrm:parse-receipt-folder', async (_e, payload) => {

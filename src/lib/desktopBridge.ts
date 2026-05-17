@@ -115,6 +115,86 @@ export async function readImageAsDataUrl(filePath: string): Promise<string> {
 }
 
 /** 영수증 trim·크기 조정 후 미리보기 (6-1) */
+export async function getGeminiStatus(): Promise<{
+  configured: boolean
+  model: string
+  source: string | null
+  maxReceiptImages: number
+} | null> {
+  const api = window.hrmDesktop
+  if (!api?.geminiStatus) return null
+  return api.geminiStatus() as Promise<{
+    configured: boolean
+    model: string
+    source: string | null
+    maxReceiptImages: number
+  }>
+}
+
+export async function saveGeminiApiKey(apiKey: string): Promise<{ ok: boolean; configured?: boolean; message?: string }> {
+  const api = window.hrmDesktop
+  if (!api?.geminiSaveKey) throw new Error('Gemini 설정은 데스크톱 앱에서만 가능합니다.')
+  return api.geminiSaveKey({ apiKey }) as Promise<{ ok: boolean; configured?: boolean; message?: string }>
+}
+
+export async function geminiAnalyzeReceiptFolder(dateFolder: string): Promise<{
+  ok: boolean
+  configured?: boolean
+  message?: string
+  dateTime?: string
+  location?: string
+  merchantName?: string
+  businessNo?: string
+  amount?: number
+  amountLine?: string
+  merchantPhone?: string
+}> {
+  const api = window.hrmDesktop
+  if (!api?.geminiAnalyzeReceipt) {
+    throw new Error('Gemini 영수증 분석은 데스크톱 앱에서만 사용할 수 있습니다.')
+  }
+  return api.geminiAnalyzeReceipt({ dateFolder }) as Promise<{
+    ok: boolean
+    configured?: boolean
+    message?: string
+    dateTime?: string
+    location?: string
+    amount?: number
+    amountLine?: string
+    merchantPhone?: string
+  }>
+}
+
+export async function geminiParseExpenseVoice(text: string): Promise<{
+  ok: boolean
+  configured?: boolean
+  message?: string
+  purpose?: string
+  attendees?: string
+  dateTime?: string
+  location?: string
+  amount?: number
+  amountLine?: string
+  note?: string
+}> {
+  const api = window.hrmDesktop
+  if (!api?.geminiParseVoice) {
+    throw new Error('Gemini 음성 정리는 데스크톱 앱에서만 사용할 수 있습니다.')
+  }
+  return api.geminiParseVoice({ text }) as Promise<{
+    ok: boolean
+    configured?: boolean
+    message?: string
+    purpose?: string
+    attendees?: string
+    dateTime?: string
+    location?: string
+    amount?: number
+    amountLine?: string
+    note?: string
+  }>
+}
+
 export async function readPreparedProofImage(filePath: string): Promise<string> {
   const api = window.hrmDesktop
   if (!api?.readPreparedProofImage) {

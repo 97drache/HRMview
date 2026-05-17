@@ -56,6 +56,41 @@ declare global {
         html: string
         defaultFileName?: string
       }) => Promise<{ ok: boolean; canceled?: boolean; filePath?: string }>
+      geminiStatus: () => Promise<{
+        configured: boolean
+        model: string
+        source: string | null
+        maxReceiptImages: number
+      }>
+      geminiSaveKey: (payload: { apiKey: string }) => Promise<{
+        ok: boolean
+        configured?: boolean
+        message?: string
+      }>
+      geminiAnalyzeReceipt: (payload: { dateFolder: string }) => Promise<{
+        ok: boolean
+        configured?: boolean
+        message?: string
+        dateTime?: string
+        location?: string
+        merchantName?: string
+        businessNo?: string
+        amount?: number
+        amountLine?: string
+        merchantPhone?: string
+      }>
+      geminiParseVoice: (payload: { text: string }) => Promise<{
+        ok: boolean
+        configured?: boolean
+        message?: string
+        purpose?: string
+        attendees?: string
+        dateTime?: string
+        location?: string
+        amount?: number
+        amountLine?: string
+        note?: string
+      }>
     }
   }
 }

@@ -4,12 +4,17 @@ import { buildExpenseProofHtml } from '../lib/expenseProofPdfHtml'
 import { formatWonLine } from '../lib/koreanWon'
 import {
   exportExpenseProofPdf,
+  geminiAnalyzeReceiptFolder,
+  geminiParseExpenseVoice,
+  getGeminiStatus,
   isDesktopApp,
   listProofImages,
   openProofFolderInExplorer,
   parseReceiptFolder,
   readPreparedProofImage,
+  saveGeminiApiKey,
 } from '../lib/desktopBridge'
+import { applyGeminiReceipt, applyGeminiVoice } from '../lib/geminiExpense'
 
 type InputMode = 'voice' | 'type' | null
 type OcrFieldKey = 'dateTime' | 'location' | 'amountLine' | 'merchantPhone'
@@ -103,7 +108,65 @@ function useSpeechRecognitionKo() {
     })
   }, [])
 
-  return { listenOnce, listening, error }
+  /** Gemini용: 짧은 연속 인식 후 전체 문장 반환 */
+  const listenDictation = useCallback((maxMs = 12000): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const AnyWin = window as unknown as {
+        SpeechRecognition?: new () => SpeechRecognitionInstance
+        webkitSpeechRecognition?: new () => SpeechRecognitionInstance
+      }
+      const SR = AnyWin.SpeechRecognition ?? AnyWin.webkitSpeechRecognition
+      if (!SR) {
+        reject(new Error('이 환경에서는 음성 인식을 사용할 수 없습니다.'))
+        return
+      }
+      const rec = new SR()
+      rec.lang = 'ko-KR'
+      rec.interimResults = true
+      rec.maxAlternatives = 1
+      rec.continuous = true
+      setError(null)
+      setListening(true)
+      const parts: string[] = []
+      let settled = false
+      const finish = (ok: boolean, payload: string) => {
+        if (settled) return
+        settled = true
+        setListening(false)
+        try {
+          rec.stop()
+        } catch {
+          /* noop */
+        }
+        clearTimeout(timer)
+        if (ok) resolve(payload.trim())
+        else reject(new Error(payload || '음성 인식 오류'))
+      }
+      const timer = setTimeout(() => finish(true, parts.join(' ')), maxMs)
+      rec.onresult = (ev: SpeechRecognitionResultEvent) => {
+        parts.length = 0
+        const list = ev.results as unknown as ArrayLike<{ 0?: { transcript?: string } }>
+        for (let i = 0; i < list.length; i++) {
+          const t = list[i]?.[0]?.transcript
+          if (t) parts.push(t)
+        }
+      }
+      rec.onerror = (ev: SpeechRecognitionErrorLike) => {
+        setError(ev.error)
+        finish(false, ev.message || ev.error)
+      }
+      rec.onend = () => {
+        if (!settled) finish(true, parts.join(' '))
+      }
+      try {
+        rec.start()
+      } catch (e) {
+        finish(false, e instanceof Error ? e.message : String(e))
+      }
+    })
+  }, [])
+
+  return { listenOnce, listenDictation, listening, error }
 }
 
 function applyOcrFields(
@@ -172,12 +235,26 @@ export function ExpenseProofPanel() {
   const [ocrBusy, setOcrBusy] = useState(false)
   const [pdfBusy, setPdfBusy] = useState(false)
   const [pdfMsg, setPdfMsg] = useState<string | null>(null)
+  const [geminiConfigured, setGeminiConfigured] = useState(false)
+  const [geminiModel, setGeminiModel] = useState('gemini-2.0-flash')
+  const [geminiBusy, setGeminiBusy] = useState(false)
+  const [geminiKeyDraft, setGeminiKeyDraft] = useState('')
+  const [showGeminiKey, setShowGeminiKey] = useState(false)
 
   const ocrGenRef = useRef(0)
   const userEditedRef = useRef<Set<OcrFieldKey>>(new Set())
   const lastFolderRef = useRef(folderDate)
 
   const speech = useSpeechRecognitionKo()
+
+  useEffect(() => {
+    if (!desktop) return
+    void getGeminiStatus().then((s) => {
+      if (!s) return
+      setGeminiConfigured(s.configured)
+      setGeminiModel(s.model)
+    })
+  }, [desktop])
 
   const markEdited = useCallback((key: OcrFieldKey) => {
     userEditedRef.current.add(key)
@@ -238,6 +315,40 @@ export function ExpenseProofPanel() {
       }
     },
     [desktop, folderDate],
+  )
+
+  const runGeminiReceipt = useCallback(
+    async (forceOverwrite: boolean) => {
+      if (!desktop || !/^\d{4}-\d{2}-\d{2}$/.test(folderDate)) return
+      if (!geminiConfigured) {
+        setOcrNotice('Gemini API 키를 설정해 주세요. (.env 또는 아래 입력)')
+        return
+      }
+      if (imagePaths.length === 0) {
+        setOcrNotice('영수증 이미지가 없습니다.')
+        return
+      }
+      setGeminiBusy(true)
+      try {
+        const r = await geminiAnalyzeReceiptFolder(folderDate)
+        if (!r.ok) {
+          setOcrNotice(r.message || 'Gemini 영수증 분석에 실패했습니다.')
+          return
+        }
+        applyGeminiReceipt(
+          r,
+          { setDateTime, setLocation, setAmount, setAmountLine, setMerchantPhone },
+          forceOverwrite,
+          userEditedRef.current,
+        )
+        setOcrNotice(r.message || 'Gemini로 영수증을 분석했습니다. 내용을 확인해 주세요.')
+      } catch (e) {
+        setOcrNotice(e instanceof Error ? e.message : String(e))
+      } finally {
+        setGeminiBusy(false)
+      }
+    },
+    [desktop, folderDate, geminiConfigured, imagePaths.length],
   )
 
   /** 날짜 변경 시에만 자동 로드 (reloadAll 의존 루프 방지) */
@@ -321,6 +432,58 @@ export function ExpenseProofPanel() {
       window.alert(e instanceof Error ? e.message : String(e))
     }
   }, [inputMode, speech])
+
+  const runGeminiVoice = useCallback(async () => {
+    if (!geminiConfigured) {
+      window.alert('Gemini API 키를 먼저 설정해 주세요.')
+      return
+    }
+    setGeminiBusy(true)
+    try {
+      window.alert(
+        '목적·참석자·금액 등을 한 번에 말씀해 주세요. (약 12초간 인식 후 자동 종료)\n예: 업무협의 식대, 참석자 조용운 60031, 금액 12만 9천6백원',
+      )
+      const text = await speech.listenDictation(12000)
+      if (!text.trim()) {
+        window.alert('인식된 내용이 없습니다.')
+        return
+      }
+      const r = await geminiParseExpenseVoice(text)
+      if (!r.ok) {
+        window.alert(r.message || 'Gemini 음성 정리에 실패했습니다.')
+        return
+      }
+      applyGeminiVoice(r, {
+        setPurpose,
+        setAttendees,
+        setDateTime,
+        setLocation,
+        setAmount,
+        setAmountLine,
+      })
+      if (r.note) setOcrNotice(r.note)
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : String(e))
+    } finally {
+      setGeminiBusy(false)
+    }
+  }, [geminiConfigured, speech])
+
+  async function handleSaveGeminiKey() {
+    try {
+      const r = await saveGeminiApiKey(geminiKeyDraft.trim())
+      if (r.ok) {
+        setGeminiConfigured(Boolean(r.configured))
+        setGeminiKeyDraft('')
+        setShowGeminiKey(false)
+        setOcrNotice(r.configured ? 'Gemini API 키를 저장했습니다.' : 'Gemini API 키를 삭제했습니다.')
+      } else if (r.message) {
+        setOcrNotice(r.message)
+      }
+    } catch (e) {
+      setOcrNotice(e instanceof Error ? e.message : String(e))
+    }
+  }
 
   function handleAmountLineChange(value: string) {
     markEdited('amountLine')
@@ -440,12 +603,65 @@ export function ExpenseProofPanel() {
               </button>
               <button
                 type="button"
+                disabled={geminiBusy || imagePaths.length === 0 || !geminiConfigured}
+                onClick={() => void runGeminiReceipt(true)}
+                className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-950 disabled:opacity-50"
+                title={geminiConfigured ? `모델: ${geminiModel}` : 'API 키 필요'}
+              >
+                {geminiBusy ? 'Gemini 분석 중…' : 'Gemini 영수증 분석'}
+              </button>
+              <button
+                type="button"
                 onClick={() => void openProofFolderInExplorer()}
                 className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800"
               >
                 증빙폴더 열기
               </button>
             </div>
+            <p className="text-xs text-slate-500 sm:col-span-2">
+              {geminiConfigured
+                ? `Gemini 사용 가능 (${geminiModel}) · 영수증은 최대 2장까지 분석`
+                : 'Gemini: 프로젝트 .env 또는 아래에 API 키를 입력하면 영수증·구두 입력 보조를 쓸 수 있습니다.'}
+            </p>
+            {!geminiConfigured || showGeminiKey ? (
+              <div className="flex flex-wrap items-end gap-2 sm:col-span-2">
+                <label className="block min-w-[200px] flex-1 text-sm">
+                  <span className="font-medium text-slate-700">Gemini API 키</span>
+                  <input
+                    type="password"
+                    autoComplete="off"
+                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                    value={geminiKeyDraft}
+                    onChange={(e) => setGeminiKeyDraft(e.target.value)}
+                    placeholder="AIza…"
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => void handleSaveGeminiKey()}
+                  className="rounded-lg bg-emerald-800 px-3 py-2 text-sm font-semibold text-white"
+                >
+                  키 저장
+                </button>
+                {geminiConfigured ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowGeminiKey(false)}
+                    className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700"
+                  >
+                    닫기
+                  </button>
+                ) : null}
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowGeminiKey(true)}
+                className="text-left text-xs text-emerald-800 underline sm:col-span-2"
+              >
+                API 키 변경
+              </button>
+            )}
           </section>
 
           {ocrNotice ? (
@@ -482,15 +698,29 @@ export function ExpenseProofPanel() {
               </button>
             </div>
             {inputMode === 'voice' ? (
-              <div className="rounded-xl border border-violet-100 bg-violet-50/60 px-4 py-3">
-                <button
-                  type="button"
-                  disabled={speech.listening}
-                  onClick={() => void runVoiceSequence()}
-                  className="rounded-lg bg-violet-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-                >
-                  {speech.listening ? '듣는 중…' : '목적 · 참석자 음성 입력'}
-                </button>
+              <div className="space-y-2 rounded-xl border border-violet-100 bg-violet-50/60 px-4 py-3">
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={speech.listening || geminiBusy}
+                    onClick={() => void runVoiceSequence()}
+                    className="rounded-lg bg-violet-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                  >
+                    {speech.listening ? '듣는 중…' : '목적 · 참석자 (단계별)'}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={speech.listening || geminiBusy || !geminiConfigured}
+                    onClick={() => void runGeminiVoice()}
+                    className="rounded-lg bg-emerald-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                  >
+                    {geminiBusy ? 'Gemini 처리 중…' : '한 번에 말하기 (Gemini)'}
+                  </button>
+                </div>
+                <p className="text-xs text-violet-900/80">
+                  단계별은 브라우저 음성 인식만 사용합니다. Gemini는 말한 내용을 목적·참석자·금액 등으로
+                  정리합니다.
+                </p>
               </div>
             ) : null}
           </section>
