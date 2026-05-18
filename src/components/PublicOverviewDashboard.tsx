@@ -11,7 +11,7 @@ import {
   YAxis,
 } from 'recharts'
 import { resolvePublicOverviewKpi, type PublicHeadcountSnapshotV1 } from '../lib/headcountPublicSnapshot'
-import { HcBlock, HC, HcHero, HcMetricCard, HcPage } from './headcountWebUi'
+import { HcBlock, HC, HcMetricCard, HcOverviewHero, HcPage } from './headcountWebUi'
 
 export type PublicHeadcountNav = 'home' | 'p-1-1' | 'p-1-2' | 'p-1-3' | 'p-1-4' | 'p-1-5'
 
@@ -34,7 +34,7 @@ export function PublicOverviewDashboard({
   const trend = [...snap.yearlyRank]
     .sort((a, b) => a.year - b.year)
     .slice(-6)
-    .map((r) => ({ year: r.year, count: r.total }))
+    .map((r) => ({ year: String(r.year), count: r.total }))
 
   const barData = snap.jobGender.map((r) => ({ name: r.job, 남: r.male, 여: r.female }))
 
@@ -59,17 +59,17 @@ export function PublicOverviewDashboard({
 
   return (
     <HcPage>
-      <HcHero total={total} />
+      <HcOverviewHero total={total} />
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="hc-metrics-grid">
         {metrics.map((m) => (
           <HcMetricCard key={m.label} label={m.label} value={m.value} />
         ))}
       </div>
 
       <HcBlock title="직종별 인원">
-        <div className="h-[252px] w-full sm:h-[280px]">
-          <ResponsiveContainer width="100%" height="100%">
+        <div className="w-full">
+          <ResponsiveContainer width="100%" height={252}>
             <BarChart data={barData} margin={{ top: 8, right: 8, left: -8, bottom: 48 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#ccc" vertical={false} />
               <XAxis
@@ -91,24 +91,32 @@ export function PublicOverviewDashboard({
       </HcBlock>
 
       <HcBlock title="연도별 재직">
-        <div className="h-[220px] w-full sm:h-[260px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={trend} margin={{ top: 8, right: 8, left: -4, bottom: 8 }}>
+        {trend.length === 0 ? (
+          <p className="py-8 text-center text-sm text-[#666]">연도별 데이터가 없습니다.</p>
+        ) : (
+          <ResponsiveContainer width="100%" height={220}>
+            <LineChart data={trend} margin={{ top: 8, right: 12, left: 0, bottom: 8 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#ccc" />
               <XAxis dataKey="year" tick={{ fill: HC.label, fontSize: 10 }} />
-              <YAxis allowDecimals={false} tick={{ fill: HC.label, fontSize: 10 }} width={32} />
+              <YAxis
+                allowDecimals={false}
+                tick={{ fill: HC.label, fontSize: 10 }}
+                width={36}
+                domain={['dataMin - 5', 'dataMax + 5']}
+              />
               <Tooltip contentStyle={tooltipStyle} />
               <Line
                 type="monotone"
                 dataKey="count"
                 name="재직"
-                stroke={HC.green}
+                stroke={HC.hero}
                 strokeWidth={2.5}
-                dot={{ r: 4, fill: HC.hero, stroke: HC.green, strokeWidth: 2 }}
+                dot={{ r: 4, fill: HC.hero, strokeWidth: 0 }}
+                activeDot={{ r: 5 }}
               />
             </LineChart>
           </ResponsiveContainer>
-        </div>
+        )}
       </HcBlock>
     </HcPage>
   )

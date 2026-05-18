@@ -14,15 +14,19 @@ export const HC = {
 
 /** 화면 전체를 감싸는 둥근 회색 캔버스 */
 export function HcPage({ children }: { children: ReactNode }) {
-  return <div className="hc-page mx-auto w-full max-w-md space-y-4 sm:max-w-lg">{children}</div>
+  return <div className="hc-page mx-auto w-full max-w-md sm:max-w-lg">{children}</div>
 }
 
-/** 1-0 상단 — 총 재직 (녹색, 큰 숫자) */
-export function HcHero({ total }: { total: number }) {
+/** 1-0 상단 — 1-1~1-5와 동일한 코드·제목 + 총 재직 */
+export function HcOverviewHero({ total }: { total: number }) {
   return (
-    <div className="flex items-center justify-center rounded-[1.25rem] bg-[#006B00] px-5 py-10 text-white shadow-sm sm:py-12">
-      <span className="text-5xl font-bold tabular-nums leading-none sm:text-6xl">{total}</span>
-      <span className="ml-2.5 pb-1 text-xl font-semibold sm:text-2xl">명 재직</span>
+    <div className="rounded-[1.25rem] bg-[#006B00] px-4 py-6 text-center text-white shadow-sm sm:py-7">
+      <p className="font-mono text-xs font-semibold tracking-wide text-white/85">1-0</p>
+      <h2 className="mt-1 text-lg font-bold leading-snug sm:text-xl">한눈에 보기</h2>
+      <div className="mt-5 flex items-baseline justify-center gap-2">
+        <span className="text-4xl font-bold tabular-nums leading-none sm:text-5xl">{total}</span>
+        <span className="text-lg font-semibold text-white/95 sm:text-xl">명 재직</span>
+      </div>
     </div>
   )
 }
@@ -40,7 +44,7 @@ export function HcSubHero({ code, title }: { code: string; title: string }) {
 /** KPI 한 칸 (2열 그리드용) */
 export function HcMetricCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex min-h-[7.5rem] flex-col items-center justify-center rounded-[1.25rem] bg-[#E0E0E0] px-3 py-6 text-center sm:min-h-[8rem]">
+    <div className="flex min-h-[7.5rem] w-full min-w-0 flex-col items-center justify-center rounded-[1.25rem] bg-[#E0E0E0] px-3 py-6 text-center sm:min-h-[8rem]">
       <p className="text-sm font-medium text-[#666666]">{label}</p>
       <p className="mt-3 text-xl font-bold leading-snug tabular-nums text-[#1A1A1A] sm:text-2xl">
         {value}

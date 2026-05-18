@@ -108,7 +108,7 @@ export function App() {
           <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#006B00]">HRM</p>
             <h1 className="truncate text-base font-bold text-[#1A1A1A] sm:text-lg">
-              {active === 'home' ? '인원현황' : ACTIVE_LABEL[active]}
+              {ACTIVE_LABEL[active]}
             </h1>
           </div>
           <time className="shrink-0 rounded-lg bg-[#E0E0E0] px-3 py-1 font-mono text-[11px] font-semibold text-[#444]">
