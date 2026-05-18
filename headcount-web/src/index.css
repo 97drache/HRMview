@@ -2,12 +2,9 @@
 
 @theme {
   --font-sans: 'Malgun Gothic', 'Apple SD Gothic Neo', 'Segoe UI', system-ui, sans-serif;
-  --color-sb-green: #00704a;
-  --color-sb-dark: #1e3932;
-  --color-sb-cream: #f2f0eb;
-  --color-sb-brown: #3d2817;
-  --color-ink: #1e3932;
-  --color-muted: #6f4e37;
+  --color-hc-hero: #006b00;
+  --color-hc-card: #e0e0e0;
+  --color-hc-page: #f2f2f2;
 }
 
 @layer base {
@@ -20,8 +17,8 @@
   body {
     margin: 0;
     font-family: var(--font-sans);
-    color: var(--color-ink);
-    background: linear-gradient(165deg, #f7f4ef 0%, #f2f0eb 42%, #ebe6de 100%);
+    color: #1a1a1a;
+    background: #f2f2f2;
     -webkit-font-smoothing: antialiased;
   }
   #root {

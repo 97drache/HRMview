@@ -18,10 +18,10 @@ export function BottomNav({
 }) {
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-50 border-t border-[#E0D9CF] bg-[#FAF8F5]/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-10px_32px_rgba(30,57,50,0.1)] backdrop-blur-md lg:hidden"
+      className="fixed inset-x-0 bottom-0 z-50 border-t border-[#D0D0D0] bg-[#F2F2F2]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden"
       aria-label="메뉴"
     >
-      <div className="mx-auto grid max-w-lg grid-cols-6 gap-1.5 px-2.5 py-2.5 sm:max-w-xl">
+      <div className="mx-auto grid max-w-md grid-cols-6 gap-2 px-3 py-2.5">
         {HEADCOUNT_NAV.map((it) => {
           const on = active === it.key
           return (
@@ -30,21 +30,19 @@ export function BottomNav({
               type="button"
               onClick={() => onSelect(it.key)}
               className={[
-                'flex w-full flex-col items-center justify-center gap-0.5 rounded-2xl px-1 py-2.5 transition-all',
-                on
-                  ? 'bg-[#00704A] text-white shadow-[0_4px_14px_rgba(0,112,74,0.35)]'
-                  : 'text-[#6F4E37] active:bg-[#F2F0EB]',
+                'flex w-full flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-2 transition-all',
+                on ? 'bg-[#006B00] text-white shadow-sm' : 'bg-[#E0E0E0] text-[#444]',
               ].join(' ')}
             >
               <span
                 className={[
                   'font-mono text-[10px] font-bold tabular-nums',
-                  on ? 'text-[#D4E9E2]' : 'text-[#00704A]/50',
+                  on ? 'text-white/90' : 'text-[#666]',
                 ].join(' ')}
               >
                 {it.code}
               </span>
-              <span className="text-center text-[10px] font-semibold leading-tight sm:text-[11px]">
+              <span className="text-center text-[10px] font-semibold leading-tight">
                 {SHORT[it.key] ?? it.label}
               </span>
             </button>
