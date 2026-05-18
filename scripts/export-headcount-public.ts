@@ -47,7 +47,14 @@ function main() {
 
   const buf = readFileSync(xlsxPath)
   const wb = parseWorkbookBuffer(toArrayBuffer(buf))
-  const snap = buildHeadcountPublicSnapshot(wb.personnel, wb.training, baseDate, wb.sheetNotes, false)
+  const snap = buildHeadcountPublicSnapshot(
+    wb.personnel,
+    wb.training,
+    baseDate,
+    wb.sheetNotes,
+    false,
+    wb.leave,
+  )
   writeFileSync(outPath, JSON.stringify(snap, null, 2), 'utf8')
   console.log('[headcount-public] wrote snapshot from', xlsxPath, '→', outPath)
 }

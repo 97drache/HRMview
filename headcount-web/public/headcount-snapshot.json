@@ -1,9 +1,24 @@
 {
   "version": 1,
-  "generatedAt": "2026-05-16T07:28:31.631Z",
-  "baseDate": "2026-05-16",
+  "generatedAt": "2026-05-18T00:22:25.322Z",
+  "baseDate": "2026-05-18",
   "sheetNotes": [],
   "empty": false,
+  "overviewKpi": {
+    "statYear": 2026,
+    "male": 86,
+    "female": 140,
+    "regular": 106,
+    "mugi": 120,
+    "meritTraining": 2,
+    "onLeave": 21,
+    "leaveScheduled": 4,
+    "onMaternity": 1,
+    "maternityScheduled": 2,
+    "hiresYtd": 0,
+    "resignsYtd": 2,
+    "wagePeakYtd": 6
+  },
   "jobGender": [
     {
       "job": "행정직",
