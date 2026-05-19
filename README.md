@@ -18,3 +18,10 @@ Electron + Vite + React. 인원·휴직·연수 엑셀을 불러와 로컬에서
 
 - `data/` — 엑셀 보관용(저장소에는 내용 미포함).
 - `HRM-app/` — 패킹 결과물(`npm run pack`으로 재생성).
+
+## Vercel 인원현황 — 매일 자동 갱신
+
+GitHub Actions가 **매일 06:00 (KST)** `HRdata.xlsx` → `headcount-snapshot.json` 을 만들고 `main`에 푸시합니다. Vercel은 푸시 시 자동 재배포됩니다.
+
+- 워크플로: `.github/workflows/daily-headcount-snapshot.yml`
+- 최초 설정(비공개 엑셀 저장소·시크릿): [docs/daily-vercel-update.md](docs/daily-vercel-update.md)
