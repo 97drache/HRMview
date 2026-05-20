@@ -14,6 +14,7 @@ const {
   saveGeminiApiKey,
   analyzeReceiptImages,
   parseExpenseVoiceText,
+  parseTripVoiceText,
 } = require('./gemini.cjs')
 
 function getDataDirectory() {
@@ -122,7 +123,7 @@ function registerIpc() {
     }
   }
 
-  ipcMain.handle('hrm:list-proof-images', (_e, opts) => {
+  ipcMain.handle('hrm:list-proof-images', async (_e, opts) => {
     const dateFolder = opts?.dateFolder ? String(opts.dateFolder) : ''
     const root = ensureProofFolderPath()
     if (dateFolder) {
@@ -150,7 +151,7 @@ function registerIpc() {
     }
     try {
       const root = ensureProofFolderPath()
-      const collected = collectProofImages(root, dateFolder)
+      const collected = await collectProofImages(root, dateFolder)
       const paths = collected.files.map((f) => f.fullPath)
       const result = await analyzeReceiptImages(paths, geminiUserData())
       if (!result.ok) return result
@@ -183,6 +184,18 @@ function registerIpc() {
     }
   })
 
+  ipcMain.handle('hrm:gemini-parse-trip-voice', async (_e, payload) => {
+    try {
+      return await parseTripVoiceText(payload?.text, geminiUserData())
+    } catch (err) {
+      return {
+        ok: false,
+        configured: true,
+        message: err instanceof Error ? err.message : String(err),
+      }
+    }
+  })
+
   ipcMain.handle('hrm:parse-receipt-folder', async (_e, payload) => {
     const dateFolder = String(payload?.dateFolder ?? '')
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateFolder)) {
@@ -203,7 +216,7 @@ function registerIpc() {
     try {
       const root = ensureProofFolderPath()
       fs.mkdirSync(path.join(root, dateFolder), { recursive: true })
-      const collected = collectProofImages(root, dateFolder)
+      const collected = await collectProofImages(root, dateFolder)
       const parsed = await parseReceiptImageFiles(collected.files.map((f) => f.fullPath))
       const amount = parsed.amount || 0
       return {

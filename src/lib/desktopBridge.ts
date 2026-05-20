@@ -55,15 +55,25 @@ export async function openProofFolderInExplorer(): Promise<void> {
   await api.openProofFolder()
 }
 
+export type ProofMediaFile = {
+  name: string
+  fullPath: string
+  sourcePdf?: string
+}
+
 export async function listProofImages(dateFolder?: string): Promise<{
   folder: string
-  files: { name: string; fullPath: string }[]
+  files: ProofMediaFile[]
+  pdfCount?: number
+  pdfErrors?: { pdf: string; message: string }[]
 }> {
   const api = window.hrmDesktop
   if (!api?.listProofImages) throw new Error('증빙폴더 목록은 데스크톱 앱에서만 사용할 수 있습니다.')
   return api.listProofImages(dateFolder ? { dateFolder } : undefined) as Promise<{
     folder: string
-    files: { name: string; fullPath: string }[]
+    files: ProofMediaFile[]
+    pdfCount?: number
+    pdfErrors?: { pdf: string; message: string }[]
   }>
 }
 
@@ -165,6 +175,7 @@ export async function geminiAnalyzeReceiptFolder(dateFolder: string): Promise<{
   }>
 }
 
+/** Gemini API는 Electron main에서만 호출됩니다. 키는 Vercel·브라우저 번들에 포함되지 않습니다. */
 export async function geminiParseExpenseVoice(text: string): Promise<{
   ok: boolean
   configured?: boolean
@@ -191,6 +202,28 @@ export async function geminiParseExpenseVoice(text: string): Promise<{
     location?: string
     amount?: number
     amountLine?: string
+    note?: string
+  }>
+}
+
+export async function geminiParseTripVoice(text: string): Promise<{
+  ok: boolean
+  configured?: boolean
+  message?: string
+  destination?: string
+  dateRange?: string
+  note?: string
+}> {
+  const api = window.hrmDesktop
+  if (!api?.geminiParseTripVoice) {
+    throw new Error('출장 음성 정리는 데스크톱 앱에서만 사용할 수 있습니다.')
+  }
+  return api.geminiParseTripVoice({ text }) as Promise<{
+    ok: boolean
+    configured?: boolean
+    message?: string
+    destination?: string
+    dateRange?: string
     note?: string
   }>
 }

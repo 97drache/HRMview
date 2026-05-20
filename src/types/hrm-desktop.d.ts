@@ -11,7 +11,12 @@ declare global {
       openDataFolder: () => Promise<void>
       listProofImages: (opts?: {
         dateFolder?: string
-      }) => Promise<{ folder: string; files: { name: string; fullPath: string }[] }>
+      }) => Promise<{
+        folder: string
+        files: { name: string; fullPath: string; sourcePdf?: string }[]
+        pdfCount?: number
+        pdfErrors?: { pdf: string; message: string }[]
+      }>
       parseReceiptFolder: (payload: { dateFolder: string }) => Promise<{
         folder: string
         dateTime: string
@@ -89,6 +94,14 @@ declare global {
         location?: string
         amount?: number
         amountLine?: string
+        note?: string
+      }>
+      geminiParseTripVoice: (payload: { text: string }) => Promise<{
+        ok: boolean
+        configured?: boolean
+        message?: string
+        destination?: string
+        dateRange?: string
         note?: string
       }>
     }

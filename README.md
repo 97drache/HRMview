@@ -13,6 +13,7 @@ Electron + Vite + React. 인원·휴직·연수 엑셀을 불러와 로컬에서
 - `npm install`
 - `npm run dev:desktop` — 소스 수정 반영
 - `npm run pack` — `HRM-app` 폴더 갱신
+- **6-1·6-2 Gemini(영수증·음성):** [docs/gemini-setup.md](docs/gemini-setup.md) — 데스크톱 전용, Vercel 미포함
 
 ## 폴더
 

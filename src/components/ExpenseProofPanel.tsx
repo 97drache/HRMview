@@ -9,6 +9,7 @@ import {
   getGeminiStatus,
   isDesktopApp,
   listProofImages,
+  type ProofMediaFile,
   openProofFolderInExplorer,
   parseReceiptFolder,
   readPreparedProofImage,
@@ -227,7 +228,7 @@ export function ExpenseProofPanel() {
   const [amountLine, setAmountLine] = useState('')
   const [merchantPhone, setMerchantPhone] = useState('')
 
-  const [imagePaths, setImagePaths] = useState<{ name: string; fullPath: string }[]>([])
+  const [imagePaths, setImagePaths] = useState<ProofMediaFile[]>([])
   const [imageDataUrls, setImageDataUrls] = useState<string[]>([])
   const [imageLoadErr, setImageLoadErr] = useState<string | null>(null)
   const [ocrNotice, setOcrNotice] = useState<string | null>(null)
@@ -267,6 +268,15 @@ export function ExpenseProofPanel() {
     try {
       const list = await listProofImages(folderDate)
       setImagePaths(list.files)
+      if (list.pdfErrors?.length) {
+        setOcrNotice(
+          `PDF 변환 실패: ${list.pdfErrors.map((e) => `${e.pdf} (${e.message})`).join(' · ')}`,
+        )
+      } else if (list.pdfCount && list.pdfCount > 0) {
+        setOcrNotice(
+          `PDF ${list.pdfCount}개에서 영수증 이미지를 추출했습니다. (${list.files.length}장)`,
+        )
+      }
       return list.files
     } catch (e) {
       setImageLoadErr(e instanceof Error ? e.message : String(e))
@@ -321,11 +331,7 @@ export function ExpenseProofPanel() {
     async (forceOverwrite: boolean) => {
       if (!desktop || !/^\d{4}-\d{2}-\d{2}$/.test(folderDate)) return
       if (!geminiConfigured) {
-        setOcrNotice('Gemini API 키를 설정해 주세요. (.env 또는 아래 입력)')
-        return
-      }
-      if (imagePaths.length === 0) {
-        setOcrNotice('영수증 이미지가 없습니다.')
+        setOcrNotice('Gemini API 키를 설정해 주세요. (아래 안내 또는 프로젝트 .env)')
         return
       }
       setGeminiBusy(true)
@@ -348,10 +354,24 @@ export function ExpenseProofPanel() {
         setGeminiBusy(false)
       }
     },
-    [desktop, folderDate, geminiConfigured, imagePaths.length],
+    [desktop, folderDate, geminiConfigured],
   )
 
-  /** 날짜 변경 시에만 자동 로드 (reloadAll 의존 루프 방지) */
+  const runReceiptAnalyze = useCallback(
+    async (forceOverwrite: boolean, preferGemini: boolean) => {
+      if (preferGemini && geminiConfigured) {
+        await runGeminiReceipt(forceOverwrite)
+        return
+      }
+      if (preferGemini && !geminiConfigured) {
+        setOcrNotice('Gemini API 키가 없어 OCR로 분석합니다. 키 설정 시 영수증 인식이 더 정확합니다.')
+      }
+      await runOcr(forceOverwrite)
+    },
+    [geminiConfigured, runGeminiReceipt, runOcr],
+  )
+
+  /** 날짜 변경 시: 이미지/PDF 로드 후 Gemini(설정 시) 또는 OCR 자동 분석 */
   useEffect(() => {
     if (!desktop) return
     if (lastFolderRef.current !== folderDate) {
@@ -362,23 +382,29 @@ export function ExpenseProofPanel() {
     void (async () => {
       const files = await loadImagesOnly()
       if (cancelled || files.length === 0) return
-      await runOcr(false)
+      const status = await getGeminiStatus()
+      const useGemini = Boolean(status?.configured)
+      if (!cancelled) setGeminiConfigured(useGemini)
+      await runReceiptAnalyze(false, useGemini)
     })()
     return () => {
       cancelled = true
       ocrGenRef.current++
     }
-  }, [desktop, folderDate, loadImagesOnly, runOcr])
+  }, [desktop, folderDate, loadImagesOnly, runReceiptAnalyze])
 
-  const reloadImagesAndOcr = useCallback(async () => {
+  const reloadImagesAndAnalyze = useCallback(async () => {
     userEditedRef.current = new Set()
     const files = await loadImagesOnly()
     if (files.length > 0) {
-      await runOcr(true)
+      const status = await getGeminiStatus()
+      const useGemini = Boolean(status?.configured)
+      setGeminiConfigured(useGemini)
+      await runReceiptAnalyze(true, useGemini)
     } else {
       setOcrNotice(null)
     }
-  }, [loadImagesOnly, runOcr])
+  }, [loadImagesOnly, runReceiptAnalyze])
 
   useEffect(() => {
     let cancelled = false
@@ -588,10 +614,10 @@ export function ExpenseProofPanel() {
               <button
                 type="button"
                 disabled={imageBusy}
-                onClick={() => void reloadImagesAndOcr()}
+                onClick={() => void reloadImagesAndAnalyze()}
                 className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 disabled:opacity-50"
               >
-                {imageBusy ? '이미지 불러오는 중…' : '이미지·OCR 다시 불러오기'}
+                {imageBusy ? '불러오는 중…' : '이미지/PDF 다시 불러오기·분석'}
               </button>
               <button
                 type="button"
@@ -619,9 +645,10 @@ export function ExpenseProofPanel() {
               </button>
             </div>
             <p className="text-xs text-slate-500 sm:col-span-2">
+              증빙폴더에 이미지(png, jpg) 또는 PDF를 넣으세요. 불러오면{' '}
               {geminiConfigured
-                ? `Gemini 사용 가능 (${geminiModel}) · 영수증은 최대 2장까지 분석`
-                : 'Gemini: 프로젝트 .env 또는 아래에 API 키를 입력하면 영수증·구두 입력 보조를 쓸 수 있습니다.'}
+                ? `Gemini(${geminiModel})가 영수증 항목을 자동 채웁니다.`
+                : 'OCR로 분석합니다. Gemini API 키를 설정하면 인식이 훨씬 정확합니다.'}
             </p>
             {!geminiConfigured || showGeminiKey ? (
               <div className="flex flex-wrap items-end gap-2 sm:col-span-2">

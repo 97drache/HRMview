@@ -3,11 +3,14 @@ import { Card } from './Ui'
 import { buildTripProofHtml } from '../lib/tripProofPdfHtml'
 import {
   exportTripProofPdf,
+  geminiParseTripVoice,
+  getGeminiStatus,
   isDesktopApp,
   listProofImages,
   openProofFolderInExplorer,
   readPreparedProofImage,
 } from '../lib/desktopBridge'
+import { applyGeminiTripVoice } from '../lib/geminiExpense'
 
 const DEFAULT_SELF = { dept: '인사팀', rankLabel: '책임급', name: '조용운' }
 
@@ -92,7 +95,64 @@ function useSpeechRecognitionKo() {
     })
   }, [])
 
-  return { listenOnce, listening, error }
+  const listenDictation = useCallback((maxMs = 12000): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const AnyWin = window as unknown as {
+        SpeechRecognition?: new () => SpeechRecognitionInstance
+        webkitSpeechRecognition?: new () => SpeechRecognitionInstance
+      }
+      const SR = AnyWin.SpeechRecognition ?? AnyWin.webkitSpeechRecognition
+      if (!SR) {
+        reject(new Error('이 환경에서는 음성 인식을 사용할 수 없습니다.'))
+        return
+      }
+      const rec = new SR()
+      rec.lang = 'ko-KR'
+      rec.interimResults = true
+      rec.maxAlternatives = 1
+      rec.continuous = true
+      setError(null)
+      setListening(true)
+      const parts: string[] = []
+      let settled = false
+      const finish = (ok: boolean, payload: string) => {
+        if (settled) return
+        settled = true
+        setListening(false)
+        try {
+          rec.stop()
+        } catch {
+          /* noop */
+        }
+        clearTimeout(timer)
+        if (ok) resolve(payload.trim())
+        else reject(new Error(payload || '음성 인식 오류'))
+      }
+      const timer = setTimeout(() => finish(true, parts.join(' ')), maxMs)
+      rec.onresult = (ev: SpeechRecognitionResultEvent) => {
+        parts.length = 0
+        const list = ev.results as unknown as ArrayLike<{ 0?: { transcript?: string } }>
+        for (let i = 0; i < list.length; i++) {
+          const t = list[i]?.[0]?.transcript
+          if (t) parts.push(t)
+        }
+      }
+      rec.onerror = (ev: SpeechRecognitionErrorLike) => {
+        setError(ev.error)
+        finish(false, ev.message || ev.error)
+      }
+      rec.onend = () => {
+        if (!settled) finish(true, parts.join(' '))
+      }
+      try {
+        rec.start()
+      } catch (e) {
+        finish(false, e instanceof Error ? e.message : String(e))
+      }
+    })
+  }, [])
+
+  return { listenOnce, listenDictation, listening, error }
 }
 
 export function TripProofPanel() {
@@ -112,14 +172,24 @@ export function TripProofPanel() {
     return `${d.getFullYear()}-${m}-${day}`
   })
 
-  const [imagePaths, setImagePaths] = useState<{ name: string; fullPath: string }[]>([])
+  const [imagePaths, setImagePaths] = useState<{ name: string; fullPath: string; sourcePdf?: string }[]>([])
   const [selectedPaths, setSelectedPaths] = useState<Set<string>>(() => new Set())
   const [imageDataUrls, setImageDataUrls] = useState<string[]>([])
   const [loadErr, setLoadErr] = useState<string | null>(null)
   const [pdfMsg, setPdfMsg] = useState<string | null>(null)
   const [pdfBusy, setPdfBusy] = useState(false)
+  const [geminiConfigured, setGeminiConfigured] = useState(false)
+  const [geminiBusy, setGeminiBusy] = useState(false)
+  const [voiceNotice, setVoiceNotice] = useState<string | null>(null)
 
   const speech = useSpeechRecognitionKo()
+
+  useEffect(() => {
+    if (!desktop) return
+    void getGeminiStatus().then((s) => {
+      if (s) setGeminiConfigured(s.configured)
+    })
+  }, [desktop])
 
   const refreshImages = useCallback(async () => {
     if (!desktop) return
@@ -130,6 +200,13 @@ export function TripProofPanel() {
       )
       setImagePaths(list.files)
       setSelectedPaths(new Set(list.files.map((f) => f.fullPath)))
+      if (list.pdfErrors?.length) {
+        setLoadErr(
+          `PDF 변환 실패: ${list.pdfErrors.map((e) => `${e.pdf} (${e.message})`).join(' · ')}`,
+        )
+      } else if (list.pdfCount && list.pdfCount > 0) {
+        setLoadErr(null)
+      }
     } catch (e) {
       setLoadErr(e instanceof Error ? e.message : String(e))
       setImagePaths([])
@@ -195,17 +272,43 @@ export function TripProofPanel() {
 
   const runVoiceSequence = useCallback(async () => {
     if (inputMode !== 'voice') return
+    if (geminiConfigured) {
+      setGeminiBusy(true)
+      setVoiceNotice(null)
+      try {
+        window.alert(
+          '출장지와 기간을 한 번에 말씀해 주세요.\n(예: 부산 본청, 3월 15일부터 17일까지)',
+        )
+        const text = await speech.listenDictation(14000)
+        if (!text.trim()) {
+          setVoiceNotice('음성이 인식되지 않았습니다.')
+          return
+        }
+        const r = await geminiParseTripVoice(text)
+        if (!r.ok) {
+          setVoiceNotice(r.message || 'Gemini 처리에 실패했습니다.')
+          return
+        }
+        applyGeminiTripVoice(r, { setDestination, setDateRange })
+        setVoiceNotice(r.message || '출장지·일자를 채웠습니다. 확인 후 수정해 주세요.')
+      } catch (e) {
+        setVoiceNotice(e instanceof Error ? e.message : String(e))
+      } finally {
+        setGeminiBusy(false)
+      }
+      return
+    }
     try {
-      window.alert('출장지를 말씀해 주세요. (인식 후 확인)')
+      window.alert('출장지를 말씀해 주세요. (Gemini 미설정 — 단계별 음성)')
       const d = await speech.listenOnce()
       if (d) setDestination(d)
-      window.alert('출장 일자를 말씀해 주세요. (예: 2026년 1월 15일부터 17일까지)')
+      window.alert('출장 일자를 말씀해 주세요.')
       const dr = await speech.listenOnce()
       if (dr) setDateRange(dr)
     } catch (e) {
       window.alert(e instanceof Error ? e.message : String(e))
     }
-  }, [inputMode, speech])
+  }, [inputMode, speech, geminiConfigured])
 
   const previewHtml = useMemo(() => {
     return buildTripProofHtml({
@@ -341,15 +444,25 @@ export function TripProofPanel() {
 
           {inputMode === 'voice' && selfChoice !== null ? (
             <section className="rounded-xl border border-violet-100 bg-violet-50/60 px-4 py-3">
+              <p className="text-xs text-violet-900">
+                {geminiConfigured
+                  ? 'Gemini가 한 번에 말한 출장지·기간을 정리합니다. (API 키는 6-1과 동일)'
+                  : 'Gemini API 키를 6-1 화면에서 설정하면 음성 정리가 더 편합니다.'}
+              </p>
               <button
                 type="button"
-                disabled={speech.listening}
+                disabled={speech.listening || geminiBusy}
                 onClick={() => void runVoiceSequence()}
                 className="mt-3 rounded-lg bg-violet-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-violet-800 disabled:opacity-50"
               >
-                {speech.listening ? '듣는 중…' : '출장지 · 일자 음성 입력 시작'}
+                {speech.listening || geminiBusy
+                  ? '듣는 중…'
+                  : geminiConfigured
+                    ? '출장지·일자 한 번에 말하기 (Gemini)'
+                    : '출장지 · 일자 음성 입력 시작'}
               </button>
               {speech.error ? <p className="mt-2 text-xs text-rose-700">{speech.error}</p> : null}
+              {voiceNotice ? <p className="mt-2 text-xs text-violet-950">{voiceNotice}</p> : null}
             </section>
           ) : null}
 
@@ -411,7 +524,7 @@ export function TripProofPanel() {
 
           <section className="space-y-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h3 className="text-sm font-semibold text-slate-900">증빙 이미지 (증빙폴더)</h3>
+              <h3 className="text-sm font-semibold text-slate-900">증빙 이미지·PDF (증빙폴더)</h3>
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -431,7 +544,9 @@ export function TripProofPanel() {
             </div>
             {loadErr ? <p className="text-xs text-rose-700">{loadErr}</p> : null}
             {imagePaths.length === 0 ? (
-              <p className="text-sm text-slate-500">이미지가 없습니다. 증빙폴더에 사진을 넣은 뒤 새로고침 하세요.</p>
+              <p className="text-sm text-slate-500">
+                이미지·PDF가 없습니다. 증빙폴더에 사진 또는 PDF를 넣은 뒤 새로고침 하세요.
+              </p>
             ) : (
               <>
                 <div className="flex flex-wrap gap-2">
@@ -465,7 +580,14 @@ export function TripProofPanel() {
                             onChange={() => toggleImageSelection(f.fullPath)}
                             className="h-4 w-4 rounded border-slate-300"
                           />
-                          <span className="font-mono text-[11px] text-slate-800">{f.name}</span>
+                          <span className="min-w-0 flex-1">
+                            <span className="font-mono text-[11px] text-slate-800">{f.name}</span>
+                            {f.sourcePdf ? (
+                              <span className="mt-0.5 block text-[10px] text-slate-500">
+                                PDF: {f.sourcePdf}
+                              </span>
+                            ) : null}
+                          </span>
                         </label>
                       </li>
                     )

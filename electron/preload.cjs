@@ -19,4 +19,5 @@ contextBridge.exposeInMainWorld('hrmDesktop', {
   geminiSaveKey: (payload) => ipcRenderer.invoke('hrm:gemini-save-key', payload),
   geminiAnalyzeReceipt: (payload) => ipcRenderer.invoke('hrm:gemini-analyze-receipt', payload),
   geminiParseVoice: (payload) => ipcRenderer.invoke('hrm:gemini-parse-voice', payload),
+  geminiParseTripVoice: (payload) => ipcRenderer.invoke('hrm:gemini-parse-trip-voice', payload),
 })

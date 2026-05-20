@@ -56,6 +56,26 @@ export function applyGeminiReceipt(
   if (may('merchantPhone') && r.merchantPhone) setters.setMerchantPhone(r.merchantPhone)
 }
 
+export type GeminiTripVoiceResult = {
+  ok: boolean
+  configured?: boolean
+  message?: string
+  destination?: string
+  dateRange?: string
+  note?: string
+}
+
+export function applyGeminiTripVoice(
+  r: GeminiTripVoiceResult,
+  setters: {
+    setDestination: (v: string) => void
+    setDateRange: (v: string) => void
+  },
+) {
+  if (r.destination) setters.setDestination(r.destination)
+  if (r.dateRange) setters.setDateRange(r.dateRange)
+}
+
 export function applyGeminiVoice(
   r: GeminiVoiceResult,
   setters: {

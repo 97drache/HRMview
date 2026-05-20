@@ -1,8 +1,13 @@
+/**
+ * Gemini API — Electron main 전용. API 키는 renderer·Vercel 빌드에 포함되지 않습니다.
+ */
 const fs = require('fs')
 const path = require('path')
+const { prepareReceiptImageBuffer } = require('./receiptImagePrepare.cjs')
+const { formatWonLine } = require('./koreanWon.cjs')
 
 const DEFAULT_MODEL = 'gemini-2.0-flash'
-const MAX_RECEIPT_IMAGES = 2
+const MAX_RECEIPT_IMAGES = 4
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024
 
 function readConfigFile(configPath) {
@@ -115,11 +120,24 @@ const VOICE_SCHEMA = {
   required: ['purpose', 'attendees', 'dateTime', 'location', 'amount', 'amountLine', 'note'],
 }
 
+const TRIP_VOICE_SCHEMA = {
+  type: 'object',
+  properties: {
+    destination: { type: 'string', description: '출장지' },
+    dateRange: { type: 'string', description: '출장 기간 문구' },
+    note: { type: 'string' },
+  },
+  required: ['destination', 'dateRange', 'note'],
+}
+
 async function callGeminiJson({ apiKey, model, systemText, parts, schema }) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': apiKey,
+    },
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: systemText }] },
       contents: [{ role: 'user', parts }],
@@ -165,6 +183,20 @@ function mimeForImage(filePath) {
   return 'image/jpeg'
 }
 
+async function readImageForGemini(absPath) {
+  const abs = path.resolve(String(absPath))
+  try {
+    return { mimeType: 'image/jpeg', data: await prepareReceiptImageBuffer(abs) }
+  } catch {
+    const st = await fs.promises.stat(abs)
+    if (st.size > MAX_IMAGE_BYTES) {
+      throw new Error(`이미지가 너무 큽니다(4MB 제한): ${path.basename(abs)}`)
+    }
+    const buf = await fs.promises.readFile(abs)
+    return { mimeType: mimeForImage(abs), data: buf }
+  }
+}
+
 function buildLocationLabel(merchantName, businessNo) {
   const m = String(merchantName ?? '').trim()
   const b = String(businessNo ?? '').trim()
@@ -186,16 +218,18 @@ async function analyzeReceiptImages(imagePaths, userDataDir) {
   const parts = []
   for (const p of paths) {
     const abs = path.resolve(String(p))
-    const st = await fs.promises.stat(abs)
-    if (!st.isFile()) continue
-    if (st.size > MAX_IMAGE_BYTES) {
-      throw new Error(`이미지가 너무 큽니다(4MB 제한): ${path.basename(abs)}`)
+    let st
+    try {
+      st = await fs.promises.stat(abs)
+    } catch {
+      continue
     }
-    const buf = await fs.promises.readFile(abs)
+    if (!st.isFile()) continue
+    const { mimeType, data } = await readImageForGemini(abs)
     parts.push({
       inlineData: {
-        mimeType: mimeForImage(abs),
-        data: buf.toString('base64'),
+        mimeType,
+        data: data.toString('base64'),
       },
     })
   }
@@ -206,13 +240,14 @@ async function analyzeReceiptImages(imagePaths, userDataDir) {
 
   parts.push({
     text: [
-      '첨부 영수증(카드 매출전표·간이영수증)에서 다음만 추출하세요.',
-      '- dateTime: 승인일시 (YYYY-MM-DD HH:mm:ss)',
-      '- merchantName: 상호',
-      '- businessNo: 사업자등록번호 (###-##-#####)',
-      '- amount: 승인금액 숫자(원, 정수)',
+      '첨부 한국 영수증·카드 매출전표·간이영수증 이미지에서 지출증빙 필드를 추출하세요.',
+      '- dateTime: 승인·거래일시 (반드시 YYYY-MM-DD HH:mm:ss, 초 없으면 :00)',
+      '- merchantName: 가맹점·상호 (카드사명만 있으면 매장명 우선)',
+      '- businessNo: 사업자등록번호 (###-##-##### 형식)',
+      '- amount: 승인·합계 금액 정수(원). 부가세·봉사료 제외한 카드 승인금액',
       '- merchantPhone: 매장 전화, 없으면 빈 문자열',
-      '여러 장이면 가장 최근·금액이 큰 승인 기준으로 하나로 합치세요.',
+      '여러 장이면 실제 지출 1건 기준(가장 최근 승인·금액이 명확한 것)으로 하나만 합치세요.',
+      '읽기 어려우면 note에 이유를 적고 가능한 필드만 채우세요.',
     ].join('\n'),
   })
 
@@ -238,11 +273,40 @@ async function analyzeReceiptImages(imagePaths, userDataDir) {
     businessNo,
     location: buildLocationLabel(merchantName, businessNo),
     amount,
-    amountLine: amount > 0 ? '' : '',
+    amountLine: amount > 0 ? formatWonLine(amount) : '',
     merchantPhone: String(parsed.merchantPhone ?? '').trim(),
     note: String(parsed.note ?? '').trim(),
     imageCount: parts.length - 1,
     message: parsed.note ? String(parsed.note) : 'Gemini로 영수증을 분석했습니다.',
+  }
+}
+
+async function parseTripVoiceText(text, userDataDir) {
+  const cfg = getGeminiConfig(userDataDir)
+  if (!cfg) {
+    return { ok: false, configured: false, message: 'Gemini API 키가 설정되지 않았습니다.' }
+  }
+  const utterance = String(text ?? '').trim()
+  if (!utterance) {
+    return { ok: false, configured: true, message: '인식된 음성 내용이 없습니다.' }
+  }
+
+  const parsed = await callGeminiJson({
+    apiKey: cfg.apiKey,
+    model: cfg.model,
+    systemText:
+      '한국어 음성을 출장 증빙 양식 필드로 정리합니다. destination=출장지, dateRange=출장 기간(자연어 유지).',
+    parts: [{ text: `출장 관련 구두 입력:\n\n${utterance}` }],
+    schema: TRIP_VOICE_SCHEMA,
+  })
+
+  return {
+    ok: true,
+    configured: true,
+    destination: String(parsed.destination ?? '').trim(),
+    dateRange: String(parsed.dateRange ?? '').trim(),
+    note: String(parsed.note ?? '').trim(),
+    message: 'Gemini로 출장 내용을 정리했습니다.',
   }
 }
 
@@ -300,5 +364,6 @@ module.exports = {
   saveGeminiApiKey,
   analyzeReceiptImages,
   parseExpenseVoiceText,
+  parseTripVoiceText,
   DEFAULT_MODEL,
 }
