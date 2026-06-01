@@ -4,13 +4,19 @@ import { PublicOverviewDashboard } from '../../src/components/PublicOverviewDash
 import { SimpleTable } from '../../src/components/Ui'
 import type { PublicHeadcountSnapshotV1 } from '../../src/lib/headcountPublicSnapshot'
 import { RANK_BAND_ORDER } from '../../src/lib/jobClassification'
-import { HC, HcMetricCard, HcTableWrap } from '../../src/components/headcountWebUi'
+import { HC, HcTableWrap } from '../../src/components/headcountWebUi'
+import { ExpenseProofPanel } from '../../src/components/ExpenseProofPanel'
+import { TripProofPanel } from '../../src/components/TripProofPanel'
 import { BottomNav } from './components/BottomNav'
 import { ChartPanel } from './components/ChartPanel'
 import { HeadcountCard } from './components/HeadcountCard'
+import { ProofSubNav } from './components/ProofSubNav'
 import {
+  bottomNavKey,
   ensureHomeHash,
   HEADCOUNT_NAV,
+  isProofNav,
+  navTitle,
   readNavFromHash,
   writeNavHash,
   type HeadcountNav,
@@ -21,11 +27,6 @@ function isSnapshot(v: unknown): v is PublicHeadcountSnapshotV1 {
   const o = v as Record<string, unknown>
   return o.version === 1 && typeof o.baseDate === 'string'
 }
-
-const ACTIVE_LABEL = Object.fromEntries(HEADCOUNT_NAV.map((n) => [n.key, n.label])) as Record<
-  HeadcountNav,
-  string
->
 
 export function App() {
   const [active, setActive] = useState<HeadcountNav>(() => readNavFromHash())
@@ -108,12 +109,14 @@ export function App() {
           <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#006B00]">HRM</p>
             <h1 className="truncate text-base font-bold text-[#1A1A1A] sm:text-lg">
-              {ACTIVE_LABEL[active]}
+              {navTitle(active)}
             </h1>
           </div>
-          <time className="shrink-0 rounded-lg bg-[#E0E0E0] px-3 py-1 font-mono text-[11px] font-semibold text-[#444]">
-            {snap.baseDate}
-          </time>
+          {!isProofNav(active) ? (
+            <time className="shrink-0 rounded-lg bg-[#E0E0E0] px-3 py-1 font-mono text-[11px] font-semibold text-[#444]">
+              {snap.baseDate}
+            </time>
+          ) : null}
         </div>
       </header>
 
@@ -121,12 +124,12 @@ export function App() {
         <nav className="hidden w-44 shrink-0 lg:block">
           <div className="sticky top-[4rem] space-y-1.5 rounded-[1.25rem] bg-[#E0E0E0] p-2">
             {HEADCOUNT_NAV.map((it) => {
-              const on = active === it.key
+              const on = bottomNavKey(active) === it.key
               return (
                 <button
                   key={it.key}
                   type="button"
-                  onClick={() => selectNav(it.key)}
+                  onClick={() => selectNav(it.key === 'proof' ? 'doc-6-1' : it.key)}
                   className={[
                     'flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-colors',
                     on ? 'bg-[#006B00] text-white shadow-sm' : 'text-[#444] hover:bg-[#F0F0F0]',
@@ -148,9 +151,14 @@ export function App() {
           ) : null}
           {active === 'home' ? (
             <PublicOverviewDashboard snap={snap} />
-          ) : (
+          ) : isProofNav(active) ? (
+            renderProofPanel(active === 'doc-6-2' ? 'doc-6-2' : 'doc-6-1', selectNav)
+          ) : active === 'p-1-1' ||
+              active === 'p-1-2' ||
+              active === 'p-1-3' ||
+              active === 'p-1-4' ? (
             renderPanel(active, snap, yearForMonth, setYearForMonth, yearOptions, monthRows)
-          )}
+          ) : null}
         </main>
       </div>
 
@@ -159,8 +167,20 @@ export function App() {
   )
 }
 
+function renderProofPanel(
+  active: 'doc-6-1' | 'doc-6-2',
+  selectNav: (key: HeadcountNav) => void,
+): ReactNode {
+  return (
+    <div>
+      <ProofSubNav active={active} onSelect={selectNav} />
+      {active === 'doc-6-1' ? <ExpenseProofPanel webMode /> : <TripProofPanel webMode />}
+    </div>
+  )
+}
+
 function renderPanel(
-  active: Exclude<HeadcountNav, 'home'>,
+  active: Exclude<HeadcountNav, 'home' | 'proof' | 'doc-6-1' | 'doc-6-2'>,
   snap: PublicHeadcountSnapshotV1,
   yearForMonth: number,
   setYearForMonth: (y: number) => void,
@@ -310,9 +330,5 @@ function renderPanel(
     )
   }
 
-  return (
-    <HeadcountCard code="1-5" title="공로연수">
-      <HcMetricCard label="공로연수" value={`${snap.meritTrainingCount}`} />
-    </HeadcountCard>
-  )
+  return null
 }

@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "generatedAt": "2026-05-29T06:03:46.116Z",
-  "baseDate": "2026-05-29",
+  "generatedAt": "2026-06-01T23:43:58.532Z",
+  "baseDate": "2026-06-02",
   "sheetNotes": [],
   "empty": false,
   "overviewKpi": {
@@ -12,8 +12,8 @@
     "mugi": 120,
     "meritTraining": 2,
     "onLeave": 21,
-    "leaveScheduled": 5,
-    "onMaternity": 1,
+    "leaveScheduled": 4,
+    "onMaternity": 0,
     "maternityScheduled": 3,
     "hiresYtd": 0,
     "resignsYtd": 2,

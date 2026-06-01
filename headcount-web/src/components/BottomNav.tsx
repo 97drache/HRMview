@@ -1,4 +1,4 @@
-import { HEADCOUNT_NAV, type HeadcountNav } from '../nav'
+import { bottomNavKey, HEADCOUNT_NAV, type HeadcountNav } from '../nav'
 
 const SHORT: Partial<Record<HeadcountNav, string>> = {
   home: '한눈에',
@@ -6,7 +6,7 @@ const SHORT: Partial<Record<HeadcountNav, string>> = {
   'p-1-2': '고용',
   'p-1-3': '연도',
   'p-1-4': '월별',
-  'p-1-5': '연수',
+  proof: '증빙',
 }
 
 export function BottomNav({
@@ -16,6 +16,8 @@ export function BottomNav({
   active: HeadcountNav
   onSelect: (key: HeadcountNav) => void
 }) {
+  const highlight = bottomNavKey(active)
+
   return (
     <nav
       className="fixed inset-x-0 bottom-0 z-50 border-t border-[#D0D0D0] bg-[#F2F2F2]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden"
@@ -23,12 +25,12 @@ export function BottomNav({
     >
       <div className="mx-auto grid max-w-md grid-cols-6 gap-2 px-3 py-2.5">
         {HEADCOUNT_NAV.map((it) => {
-          const on = active === it.key
+          const on = highlight === it.key
           return (
             <button
               key={it.key}
               type="button"
-              onClick={() => onSelect(it.key)}
+              onClick={() => onSelect(it.key === 'proof' ? 'doc-6-1' : it.key)}
               className={[
                 'flex w-full flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-2 transition-all',
                 on ? 'bg-[#006B00] text-white shadow-sm' : 'bg-[#E0E0E0] text-[#444]',
