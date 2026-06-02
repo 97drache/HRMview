@@ -9,12 +9,38 @@ declare global {
       pickExcel: () => Promise<string | null>
       readExcelFile: (filePath: string) => Promise<ArrayBuffer | Uint8Array | Buffer>
       openDataFolder: () => Promise<void>
+      getHrdataMtime: () => Promise<number | null>
+      shouldExportHeadcountToday: () => Promise<boolean>
+      publishHeadcountSnapshot: (jsonStr: string) => Promise<{
+        ok: boolean
+        writtenPaths?: string[]
+        gitOk?: boolean
+        gitMessage?: string
+        deployOk?: boolean
+        deployMessage?: string
+        repoRoot?: string | null
+      }>
+      getHeadcountExportStatus: () => Promise<{
+        lastExportDate: string | null
+        lastExportAt: string | null
+        shouldExportToday: boolean
+        gitMessage?: string | null
+      }>
+      onHrdataChanged: (cb: (payload?: { mtimeMs?: number }) => void) => () => void
+      onHeadcountExportRequest: (cb: () => void) => () => void
       listProofImages: (opts?: {
         dateFolder?: string
       }) => Promise<{
         folder: string
         files: { name: string; fullPath: string; sourcePdf?: string }[]
         pdfCount?: number
+        pdfErrors?: { pdf: string; message: string }[]
+      }>
+      pickProofFiles: () => Promise<{ paths: string[] }>
+      pickCareerRecordFiles: () => Promise<{ paths: string[] }>
+      readCareerRecordFile: (filePath: string) => Promise<ArrayBuffer | Uint8Array | Buffer>
+      resolveProofFiles: (payload: { paths: string[] }) => Promise<{
+        files: { name: string; fullPath: string; sourcePdf?: string }[]
         pdfErrors?: { pdf: string; message: string }[]
       }>
       parseReceiptFolder: (payload: { dateFolder: string }) => Promise<{
@@ -35,7 +61,6 @@ declare global {
       readPreparedProofImage: (filePath: string) => Promise<string>
       openProofFolder: () => Promise<void>
       exportExpenseProofPdf: (payload: {
-        dateFolder: string
         dateTime: string
         location: string
         purpose: string
@@ -54,7 +79,6 @@ declare global {
         destination: string
         dateRange: string
         imagePaths: string[]
-        dateFolder: string
         fileName: string
       }) => Promise<{ ok: boolean; canceled?: boolean; filePath?: string }>
       exportCareerPdf: (payload: {
@@ -72,7 +96,10 @@ declare global {
         configured?: boolean
         message?: string
       }>
-      geminiAnalyzeReceipt: (payload: { dateFolder: string }) => Promise<{
+      geminiAnalyzeReceipt: (payload: {
+        dateFolder?: string
+        imagePaths?: string[]
+      }) => Promise<{
         ok: boolean
         configured?: boolean
         message?: string
@@ -96,13 +123,58 @@ declare global {
         amountLine?: string
         note?: string
       }>
+      geminiAnalyzeTrip: (payload: {
+        dateFolder?: string
+        imagePaths?: string[]
+      }) => Promise<{
+        ok: boolean
+        configured?: boolean
+        message?: string
+        dept?: string
+        rankLabel?: string
+        name?: string
+        destination?: string
+        dateRange?: string
+        note?: string
+      }>
       geminiParseTripVoice: (payload: { text: string }) => Promise<{
         ok: boolean
         configured?: boolean
         message?: string
+        dept?: string
+        rankLabel?: string
+        name?: string
         destination?: string
         dateRange?: string
         note?: string
+      }>
+      geminiAnalyzeCareerRecord: (payload: {
+        filePath: string
+        empId?: string
+        jobType?: string
+      }) => Promise<{
+        ok: boolean
+        configured?: boolean
+        message?: string
+        record?: Record<string, unknown>
+      }>
+      geminiAnalyzeLeaveRecord: (payload: {
+        filePath: string
+        empId?: string
+      }) => Promise<{
+        ok: boolean
+        configured?: boolean
+        message?: string
+        record?: Record<string, unknown>
+      }>
+      geminiAnalyzeRetirementRecord: (payload: {
+        filePath: string
+        empId?: string
+      }) => Promise<{
+        ok: boolean
+        configured?: boolean
+        message?: string
+        record?: Record<string, unknown>
       }>
     }
   }

@@ -49,6 +49,49 @@ export async function openDataFolderInExplorer(): Promise<void> {
   await api.openDataFolder()
 }
 
+export function onHrdataChanged(cb: (payload?: { mtimeMs?: number }) => void): () => void {
+  const api = window.hrmDesktop
+  if (!api?.onHrdataChanged) return () => {}
+  return api.onHrdataChanged(cb)
+}
+
+export function onHeadcountExportRequest(cb: () => void): () => void {
+  const api = window.hrmDesktop
+  if (!api?.onHeadcountExportRequest) return () => {}
+  return api.onHeadcountExportRequest(cb)
+}
+
+export async function shouldExportHeadcountToday(): Promise<boolean> {
+  const api = window.hrmDesktop
+  if (!api?.shouldExportHeadcountToday) return false
+  return api.shouldExportHeadcountToday()
+}
+
+export async function publishHeadcountSnapshot(jsonStr: string): Promise<{
+  ok: boolean
+  writtenPaths?: string[]
+  gitOk?: boolean
+  gitMessage?: string
+  deployOk?: boolean
+  deployMessage?: string
+  repoRoot?: string | null
+}> {
+  const api = window.hrmDesktop
+  if (!api?.publishHeadcountSnapshot) throw new Error('모바일 스냅샷 저장은 데스크톱 앱에서만 가능합니다.')
+  return api.publishHeadcountSnapshot(jsonStr)
+}
+
+export async function getHeadcountExportStatus(): Promise<{
+  lastExportDate: string | null
+  lastExportAt: string | null
+  shouldExportToday: boolean
+  gitMessage?: string | null
+} | null> {
+  const api = window.hrmDesktop
+  if (!api?.getHeadcountExportStatus) return null
+  return api.getHeadcountExportStatus()
+}
+
 export async function openProofFolderInExplorer(): Promise<void> {
   const api = window.hrmDesktop
   if (!api?.openProofFolder) return
@@ -99,7 +142,6 @@ export async function parseReceiptFolder(dateFolder: string): Promise<{
 }
 
 export async function exportExpenseProofPdf(payload: {
-  dateFolder: string
   dateTime: string
   location: string
   purpose: string
@@ -145,6 +187,131 @@ export async function saveGeminiApiKey(apiKey: string): Promise<{ ok: boolean; c
   const api = window.hrmDesktop
   if (!api?.geminiSaveKey) throw new Error('Gemini 설정은 데스크톱 앱에서만 가능합니다.')
   return api.geminiSaveKey({ apiKey }) as Promise<{ ok: boolean; configured?: boolean; message?: string }>
+}
+
+export async function pickProofFiles(): Promise<string[]> {
+  const api = window.hrmDesktop
+  if (!api?.pickProofFiles) throw new Error('파일 선택은 데스크톱 앱에서만 사용할 수 있습니다.')
+  const r = (await api.pickProofFiles()) as { paths?: string[] }
+  return r.paths ?? []
+}
+
+export async function pickCareerRecordFiles(): Promise<string[]> {
+  const api = window.hrmDesktop
+  if (!api?.pickCareerRecordFiles) throw new Error('인사기록부 선택은 데스크톱 앱에서만 사용할 수 있습니다.')
+  const r = (await api.pickCareerRecordFiles()) as { paths?: string[] }
+  return r.paths ?? []
+}
+
+export async function readCareerRecordFile(filePath: string): Promise<ArrayBuffer> {
+  const api = window.hrmDesktop
+  if (!api?.readCareerRecordFile) throw new Error('파일 읽기는 데스크톱 앱에서만 사용할 수 있습니다.')
+  const raw = await api.readCareerRecordFile(filePath)
+  return bufferLikeToArrayBuffer(raw)
+}
+
+export async function geminiAnalyzeCareerRecord(payload: {
+  filePath: string
+  empId: string
+  jobType: string
+}): Promise<{
+  ok: boolean
+  configured?: boolean
+  message?: string
+  record?: Record<string, unknown>
+}> {
+  const api = window.hrmDesktop
+  if (!api?.geminiAnalyzeCareerRecord) {
+    throw new Error('경력 분석(Gemini)은 데스크톱 앱에서만 사용할 수 있습니다.')
+  }
+  return api.geminiAnalyzeCareerRecord(payload) as Promise<{
+    ok: boolean
+    configured?: boolean
+    message?: string
+    record?: Record<string, unknown>
+  }>
+}
+
+export async function geminiAnalyzeLeaveRecord(payload: {
+  filePath: string
+  empId: string
+}): Promise<{
+  ok: boolean
+  configured?: boolean
+  message?: string
+  record?: Record<string, unknown>
+}> {
+  const api = window.hrmDesktop
+  if (!api?.geminiAnalyzeLeaveRecord) {
+    throw new Error('휴직 분석(Gemini)은 데스크톱 앱에서만 사용할 수 있습니다.')
+  }
+  return api.geminiAnalyzeLeaveRecord(payload) as Promise<{
+    ok: boolean
+    configured?: boolean
+    message?: string
+    record?: Record<string, unknown>
+  }>
+}
+
+export async function geminiAnalyzeRetirementRecord(payload: {
+  filePath: string
+  empId: string
+}): Promise<{
+  ok: boolean
+  configured?: boolean
+  message?: string
+  record?: Record<string, unknown>
+}> {
+  const api = window.hrmDesktop
+  if (!api?.geminiAnalyzeRetirementRecord) {
+    throw new Error('퇴직 분석(Gemini)은 데스크톱 앱에서만 사용할 수 있습니다.')
+  }
+  return api.geminiAnalyzeRetirementRecord(payload) as Promise<{
+    ok: boolean
+    configured?: boolean
+    message?: string
+    record?: Record<string, unknown>
+  }>
+}
+
+export async function resolveProofFiles(paths: string[]): Promise<{
+  files: ProofMediaFile[]
+  pdfErrors?: { pdf: string; message: string }[]
+}> {
+  const api = window.hrmDesktop
+  if (!api?.resolveProofFiles) throw new Error('증빙 파일 처리는 데스크톱 앱에서만 사용할 수 있습니다.')
+  return api.resolveProofFiles({ paths }) as Promise<{
+    files: ProofMediaFile[]
+    pdfErrors?: { pdf: string; message: string }[]
+  }>
+}
+
+export async function geminiAnalyzeReceiptImages(imagePaths: string[]): Promise<{
+  ok: boolean
+  configured?: boolean
+  message?: string
+  dateTime?: string
+  location?: string
+  merchantName?: string
+  businessNo?: string
+  amount?: number
+  amountLine?: string
+  merchantPhone?: string
+}> {
+  const api = window.hrmDesktop
+  if (!api?.geminiAnalyzeReceipt) {
+    throw new Error('Gemini 영수증 분석은 데스크톱 앱에서만 사용할 수 있습니다.')
+  }
+  return api.geminiAnalyzeReceipt({ imagePaths }) as Promise<{
+    ok: boolean
+    configured?: boolean
+    message?: string
+    dateTime?: string
+    location?: string
+    amount?: number
+    amountLine?: string
+    merchantPhone?: string
+  }>
 }
 
 export async function geminiAnalyzeReceiptFolder(dateFolder: string): Promise<{
@@ -206,10 +373,58 @@ export async function geminiParseExpenseVoice(text: string): Promise<{
   }>
 }
 
+export async function geminiAnalyzeTripFolder(dateFolder: string): Promise<{
+  ok: boolean
+  configured?: boolean
+  message?: string
+  dept?: string
+  rankLabel?: string
+  name?: string
+  destination?: string
+  dateRange?: string
+  note?: string
+}> {
+  return geminiAnalyzeTripImages({ dateFolder })
+}
+
+export async function geminiAnalyzeTripImages(payload: {
+  dateFolder?: string
+  imagePaths?: string[]
+}): Promise<{
+  ok: boolean
+  configured?: boolean
+  message?: string
+  dept?: string
+  rankLabel?: string
+  name?: string
+  destination?: string
+  dateRange?: string
+  note?: string
+}> {
+  const api = window.hrmDesktop
+  if (!api?.geminiAnalyzeTrip) {
+    throw new Error('출장 증빙 분석은 데스크톱 앱에서만 사용할 수 있습니다.')
+  }
+  return api.geminiAnalyzeTrip(payload) as Promise<{
+    ok: boolean
+    configured?: boolean
+    message?: string
+    dept?: string
+    rankLabel?: string
+    name?: string
+    destination?: string
+    dateRange?: string
+    note?: string
+  }>
+}
+
 export async function geminiParseTripVoice(text: string): Promise<{
   ok: boolean
   configured?: boolean
   message?: string
+  dept?: string
+  rankLabel?: string
+  name?: string
   destination?: string
   dateRange?: string
   note?: string
@@ -222,6 +437,9 @@ export async function geminiParseTripVoice(text: string): Promise<{
     ok: boolean
     configured?: boolean
     message?: string
+    dept?: string
+    rankLabel?: string
+    name?: string
     destination?: string
     dateRange?: string
     note?: string
@@ -243,7 +461,6 @@ export async function exportTripProofPdf(payload: {
   destination: string
   dateRange: string
   imagePaths: string[]
-  dateFolder: string
   fileName: string
 }): Promise<{ ok: boolean; canceled?: boolean; filePath?: string }> {
   const api = window.hrmDesktop
