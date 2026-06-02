@@ -39,3 +39,17 @@ export function formatWonLine(amount: number): string {
   if (!Number.isFinite(n) || n < 0) return ''
   return `${numberToKoreanWon(n)}(₩${n.toLocaleString('ko-KR')})`
 }
+
+/** 집행내역서 5번 승인금액 표기 (예: 129,600원) */
+export function formatWonComma(amount: number): string {
+  const n = Math.round(Number(amount))
+  if (!Number.isFinite(n) || n <= 0) return ''
+  return `${n.toLocaleString('ko-KR')}원`
+}
+
+export function parseWonAmount(text: string): number {
+  const digits = String(text ?? '').replace(/[^\d]/g, '')
+  if (!digits) return 0
+  const n = Number(digits)
+  return Number.isFinite(n) ? n : 0
+}

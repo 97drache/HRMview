@@ -1,5 +1,5 @@
 import { escapeHtml } from './tripProofPdfHtml'
-import { formatWonLine } from './koreanWon'
+import { formatWonComma } from './koreanWon'
 import { pdfPageBaseCss } from './pdfLayout'
 
 export type ExpenseProofFields = {
@@ -106,7 +106,7 @@ export function buildExpenseProofHtml(params: ExpenseProofFields & { imageSrcs: 
   const purpose = escapeHtml(params.purpose)
   const attendees = escapeHtml(params.attendees)
   const amountLine = escapeHtml(
-    params.amountLine || (params.amount && params.amount > 0 ? formatWonLine(params.amount) : ''),
+    params.amountLine || (params.amount && params.amount > 0 ? formatWonComma(params.amount) : ''),
   )
   const simpleReceiptReason = escapeHtml(params.simpleReceiptReason || '')
   const merchantPhone = escapeHtml(params.merchantPhone || '')
