@@ -43,4 +43,10 @@ function formatWonLine(amount) {
   return `${kor}(₩${n.toLocaleString('ko-KR')})`
 }
 
-module.exports = { numberToKoreanWon, formatWonLine }
+function formatWonComma(amount) {
+  const n = Math.round(Number(amount))
+  if (!Number.isFinite(n) || n <= 0) return ''
+  return `${n.toLocaleString('ko-KR')}원`
+}
+
+module.exports = { numberToKoreanWon, formatWonLine, formatWonComma }

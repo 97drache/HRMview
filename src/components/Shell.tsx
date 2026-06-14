@@ -1,8 +1,16 @@
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale/ko'
-import { useId, type ReactNode } from 'react'
+import { useId, useState, type ReactNode } from 'react'
 import { useData } from '../context/DataContext'
-import { NAV_GROUPS, groupIdForNavKey, navGroupForKey, type NavKey } from '../navConfig'
+import { openDataFolderInExplorer } from '../lib/desktopBridge'
+import { publishMobileHeadcountSnapshot } from '../lib/headcountDailyExport'
+import {
+  NAV_GROUPS,
+  groupIdForNavKey,
+  groupUsesHrData,
+  navGroupForKey,
+  type NavKey,
+} from '../navConfig'
 
 export type { NavKey } from '../navConfig'
 
@@ -17,11 +25,24 @@ export function Shell({
   onSelectCategory: (groupId: string) => void
   children: ReactNode
 }) {
-  const { baseDate, setBaseDate, dataLoading, dataLoadError } = useData()
+  const {
+    baseDate,
+    setBaseDate,
+    dataLoading,
+    dataLoadError,
+    fileName,
+    dataDirectory,
+    dataLoadedAt,
+    reloadDataFromFolder,
+    data,
+  } = useData()
+  const [mobileMsg, setMobileMsg] = useState<string | null>(null)
+  const [mobileBusy, setMobileBusy] = useState(false)
   const dateId = useId()
   const isDesktop = typeof window !== 'undefined' && window.hrmDesktop?.isDesktop === true
   const activeGroupId = groupIdForNavKey(active)
   const currentGroup = navGroupForKey(active)
+  const showHrDataBar = isDesktop && groupUsesHrData(activeGroupId)
 
   return (
     <div className="flex h-full min-h-0 text-slate-800">
@@ -139,9 +160,77 @@ export function Shell({
           </div>
         </header>
 
-        {isDesktop && dataLoadError && !dataLoading ? (
+        {showHrDataBar && dataLoadError && !dataLoading ? (
           <div className="mx-6 mt-4 rounded-xl border border-rose-200/80 bg-rose-50/80 px-4 py-3 text-sm text-rose-950">
             {dataLoadError}
+            {dataDirectory ? (
+              <div className="mt-2 text-xs text-rose-800/90">
+                data 폴더: {dataDirectory}
+                <button
+                  type="button"
+                  className="ml-2 underline hover:no-underline"
+                  onClick={() => void openDataFolderInExplorer()}
+                >
+                  폴더 열기
+                </button>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        {showHrDataBar && !dataLoadError ? (
+          <div className="mx-6 mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-slate-200/80 bg-slate-50/80 px-4 py-2.5 text-xs text-slate-600">
+            <span>
+              {fileName ?? 'HRdata.xlsx'}
+              {dataLoadedAt
+                ? ` · ${format(dataLoadedAt, 'M/d HH:mm', { locale: ko })} 불러옴`
+                : dataLoading
+                  ? ' · 불러오는 중…'
+                  : ''}
+            </span>
+            {dataDirectory ? (
+              <button
+                type="button"
+                className="truncate text-left text-slate-500 underline decoration-slate-300 hover:text-slate-800"
+                title={dataDirectory}
+                onClick={() => void openDataFolderInExplorer()}
+              >
+                {dataDirectory}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              disabled={dataLoading}
+              className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+              onClick={() => void reloadDataFromFolder()}
+            >
+              {dataLoading ? '새로고침…' : '엑셀 새로고침'}
+            </button>
+            {data?.personnel?.length ? (
+              <button
+                type="button"
+                disabled={mobileBusy || dataLoading}
+                className="rounded-md border border-teal-200 bg-teal-50 px-2.5 py-1 text-xs font-medium text-teal-900 hover:bg-teal-100 disabled:opacity-50"
+                onClick={() => {
+                  setMobileBusy(true)
+                  setMobileMsg(null)
+                  void publishMobileHeadcountSnapshot(data, baseDate)
+                    .then((msg) => setMobileMsg(msg))
+                    .catch((e) =>
+                      setMobileMsg(e instanceof Error ? e.message : '모바일 스냅샷 저장 실패'),
+                    )
+                    .finally(() => setMobileBusy(false))
+                }}
+              >
+                {mobileBusy ? '모바일 반영…' : '모바일 반영'}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+
+        {showHrDataBar && mobileMsg ? (
+          <div className="mx-6 mt-2 rounded-lg border border-teal-200/80 bg-teal-50/90 px-4 py-2 text-xs text-teal-950">
+            {mobileMsg}
           </div>
         ) : null}
 

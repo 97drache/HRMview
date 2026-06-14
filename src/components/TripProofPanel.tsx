@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Card } from './Ui'
 import { ProofFileList } from './proof/ProofFileList'
 import { buildTripProofHtml } from '../lib/tripProofPdfHtml'
+import { exportProofHtmlAsPdf } from '../lib/webProofExport'
 import {
-  downloadTextFile,
   exportTripProofPdf,
   geminiAnalyzeTripImages,
   isDesktopApp,
@@ -234,8 +234,7 @@ export function TripProofPanel({ webMode = false }: { webMode?: boolean }) {
         dateRange,
         imageSrcs: imageDataUrls,
       })
-      downloadTextFile(safeName.replace(/\.pdf$/i, '.html'), html, 'text/html;charset=utf-8')
-      setPdfMsg('HTML 파일을 저장했습니다. 브라우저에서 열어 인쇄→PDF로 저장할 수 있습니다.')
+      setPdfMsg(exportProofHtmlAsPdf(html, safeName))
       return
     }
     if (!desktop) {
@@ -287,7 +286,7 @@ export function TripProofPanel({ webMode = false }: { webMode?: boolean }) {
           }}
         />
       ) : null}
-      <Card code="6-2" title="출장 증빙">
+      <Card code="6-3" title="출장 증빙">
         <div className="space-y-6">
           <ProofFileList
             files={imagePaths}
@@ -387,7 +386,7 @@ export function TripProofPanel({ webMode = false }: { webMode?: boolean }) {
             onClick={() => void handlePdf()}
             className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
           >
-            {pdfBusy ? 'PDF 생성 중…' : webMode ? 'HTML 저장' : 'PDF 저장'}
+            {pdfBusy ? 'PDF 생성 중…' : 'PDF 저장'}
           </button>
           {pdfMsg ? (
             <pre className="whitespace-pre-wrap rounded-lg border border-emerald-200 bg-emerald-50/90 px-3 py-2 text-xs text-emerald-950">

@@ -115,18 +115,32 @@ function expenseProofStyles(fontFace) {
     flex: 1;
     min-height: 0;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 4mm;
+    gap: 2mm;
+    padding: 3mm;
+    overflow: hidden;
+    background: #fff;
+  }
+  .attach-item {
+    flex: 1 1 0;
+    min-height: 0;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     overflow: hidden;
   }
   .attach-box img {
     display: block;
     max-width: 100%;
-    max-height: 50%;
+    max-height: 100%;
     width: auto;
     height: auto;
     object-fit: contain;
+    object-position: center center;
+    margin: auto;
   }
   .bank-block { flex-shrink: 0; border-top: 1px solid #000; }
   .bank-caption {
@@ -188,7 +202,10 @@ function buildExpenseProofHtml(fields, imageRelPaths, fontRelPath) {
     : ''
 
   const imgs = (imageRelPaths || [])
-    .map((src, i) => `<img src="${escapeHtml(src)}" alt="증빙 ${i + 1}" />`)
+    .map(
+      (src, i) =>
+        `<div class="attach-item"><img src="${escapeHtml(src)}" alt="증빙 ${i + 1}" /></div>`,
+    )
     .join('')
 
   return `<!DOCTYPE html>

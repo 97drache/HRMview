@@ -4,8 +4,9 @@
  */
 import * as XLSX from 'xlsx'
 import { addDays, startOfDay } from 'date-fns'
-import { parseFlexibleDate, fmt, fmtKo } from './dates'
+import { parseFlexibleDate, fmt, fmtDots, fmtKo } from './dates'
 import { classifyRankBand, type RankBand } from './jobClassification'
+import { certificateLetterheadHtml, certificateSealStampHtml } from './certificateSeal'
 
 function cellStr(v: unknown): string {
   return String(v ?? '')
@@ -38,15 +39,39 @@ function sheetToMatrix(ws: XLSX.WorkSheet): unknown[][] {
 const MEONGHAM_DEPT_RE =
   /([가-힣A-Za-z0-9][가-힣A-Za-z0-9·\s]*?(?:팀|부|실|본부|처|과|센터|원|단|국))(?:\s*\([^)]{0,40}\))?\s*근무\s*명함/
 
+const DEPT_IN_TEXT_RE =
+  /([가-힣A-Za-z0-9][가-힣A-Za-z0-9·\s/-]*?(?:팀|부|실|본부|처|과|센터|단|국|연구소|대학원|사업단|추진단))(?:\s*\([^)]{0,40}\))?/g
+
+const ORG_PREFIX_RE = /^(?:광주\s*과학\s*기술원|광주과학기술원|지스트|gist)\s*(?:\/|\\|>|:|-)?\s*/i
+const ORG_ONLY_RE = /^(?:광주\s*과학\s*기술원|광주과학기술원|지스트|gist)$/i
+
 function extractDeptFromMeongham(imsa: string): string | null {
   const m = imsa.match(MEONGHAM_DEPT_RE)
   return m ? m[1].replace(/\s+/g, ' ').trim() : null
 }
 
-function isPromotionAppointmentNote(imsa: string): boolean {
-  const n = normTitle(imsa)
-  if (!n) return false
-  return /승진임용|승진\s*임용|승\s*진\s*임\s*용/.test(n)
+function normalizeDepartment(raw: string): string {
+  const cleaned = String(raw ?? '')
+    .replace(/\u00a0/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (!cleaned || ORG_ONLY_RE.test(cleaned)) return ''
+  const stripped = cleaned.replace(ORG_PREFIX_RE, '').trim()
+  if (!stripped || ORG_ONLY_RE.test(stripped)) return ''
+  return stripped
+}
+
+function extractDeptFromImsa(imsa: string): string | null {
+  const explicit = extractDeptFromMeongham(imsa)
+  if (explicit) return normalizeDepartment(explicit) || null
+
+  const text = String(imsa ?? '')
+  const matches = [...text.matchAll(DEPT_IN_TEXT_RE)]
+  for (let i = matches.length - 1; i >= 0; i--) {
+    const value = normalizeDepartment(matches[i]?.[1] ?? '')
+    if (value) return value
+  }
+  return null
 }
 
 function normEmpId(s: string): string {
@@ -251,10 +276,12 @@ function parsePromotionSection(matrix: unknown[][]): ParsedPromotionRow[] {
 }
 
 function findWorkLogTitleRow(matrix: unknown[][]): number {
+  let lastMatch = -1
   for (let r = 0; r < matrix.length; r++) {
     const j = rowJoinedNorm(matrix, r)
-    if (j.includes('근무') && j.includes('기록')) return r
+    if (j.includes('근무') && j.includes('기록')) lastMatch = r
   }
+  if (lastMatch >= 0) return lastMatch
   return findSectionHeaderRow(matrix, ['근무기록', '근무 기록', '근무기록표'])
 }
 
@@ -336,10 +363,7 @@ function parseWorkLogSection(matrix: unknown[][]): ParsedWorkLogRow[] {
   const out: ParsedWorkLogRow[] = []
   for (let r = headerRow + 1; r < matrix.length; r++) {
     const row = matrix[r] ?? []
-    if (row.every((x) => !cellStr(x))) {
-      if (out.length > 0 && r > headerRow + 5) break
-      continue
-    }
+    if (row.every((x) => !cellStr(x))) continue
     const joined = rowJoinedNorm(matrix, r)
     if (/보직현황|학력|가족|상벌|훈련|수상|징계/.test(joined)) break
 
@@ -484,7 +508,7 @@ function pickDutyTitle(
   const deptNorm = normTitle(dept)
   for (const d of duties) {
     if (!d.title) continue
-    const dn = normTitle(d.dept)
+    const dn = normTitle(normalizeDepartment(d.dept))
     if (dn && deptNorm) {
       if (!deptNorm.includes(dn) && !dn.includes(deptNorm)) continue
     }
@@ -513,13 +537,11 @@ export type CareerCertificateModel = {
   warnings: string[]
 }
 
-function filterWorkLogRows(rows: ParsedWorkLogRow[], strictImsa: boolean): ParsedWorkLogRow[] {
+function filterWorkLogRows(rows: ParsedWorkLogRow[]): ParsedWorkLogRow[] {
   return rows.filter((w) => {
-    if (isPromotionAppointmentNote(w.imsa)) return false
     if (!w.rawDate) return false
     const hasDept = w.dept.trim().length > 0
     const hasImsa = w.imsa.trim().length > 0
-    if (strictImsa && !hasImsa) return false
     return hasDept || hasImsa
   })
 }
@@ -528,60 +550,45 @@ function buildCareerRows(
   parsed: CareerRecordParseResult,
   jobType: string,
 ): CareerCertRow[] {
-  let filtered = filterWorkLogRows(parsed.workLog, true)
-  if (filtered.length === 0) filtered = filterWorkLogRows(parsed.workLog, false)
+  const filtered = filterWorkLogRows(parsed.workLog).sort((a, b) => {
+    const at = a.rawDate ? startOfDay(a.rawDate).getTime() : 0
+    const bt = b.rawDate ? startOfDay(b.rawDate).getTime() : 0
+    return at - bt
+  })
 
-  type Seg = { start: Date; end: Date; dept: string }
-  const segs: Seg[] = []
+  const rows: CareerCertRow[] = []
+  let lastDept = ''
 
   for (let i = 0; i < filtered.length; i++) {
     const w = filtered[i]!
     if (!w.rawDate) continue
     const start = startOfDay(w.rawDate)
-    let end: Date
-    if (w.rawEnd) end = startOfDay(w.rawEnd)
-    else {
-      const next = filtered.slice(i + 1).find((x) => x.rawDate)
-      end = next?.rawDate ? addDays(startOfDay(next.rawDate), -1) : startOfDay(new Date())
-    }
+    const next = filtered.slice(i + 1).find((x) => x.rawDate)
+    let end: Date = next?.rawDate ? addDays(startOfDay(next.rawDate), -1) : startOfDay(new Date())
+    if (!next?.rawDate && w.rawEnd) end = startOfDay(w.rawEnd)
     if (end.getTime() < start.getTime()) end = start
 
-    const fromMeong = extractDeptFromMeongham(w.imsa)
-    const dept = (fromMeong ?? w.dept).replace(/\s+/g, ' ').trim()
+    const deptFromImsa = extractDeptFromImsa(w.imsa)
+    const deptFromCell = normalizeDepartment(w.dept)
+    const dept = deptFromImsa || deptFromCell || lastDept
     if (!dept) continue
-    segs.push({ start, end, dept })
-  }
-
-  segs.sort((a, b) => a.start.getTime() - b.start.getTime())
-
-  const merged: Seg[] = []
-  for (const s of segs) {
-    const prev = merged[merged.length - 1]
-    if (prev && prev.dept === s.dept && addDays(prev.end, 1).getTime() >= s.start.getTime()) {
-      if (s.end.getTime() > prev.end.getTime()) prev.end = s.end
-    } else {
-      merged.push({ ...s })
-    }
-  }
-
-  const withPos: CareerCertRow[] = merged.map((s) => {
-    const rankStr = promotionRankAt(parsed.promotions, s.start)
-    const duty = pickDutyTitle(parsed.duties, s.dept, s.start, s.end, rankStr, jobType)
+    lastDept = dept
+    const rankStr = promotionRankAt(parsed.promotions, start)
+    const duty = pickDutyTitle(parsed.duties, dept, start, end, rankStr, jobType)
     const band = rankBandForPosition(rankStr, jobType)
     let positionLabel = '담당'
     if (band === '책임급' || band === '선임급') {
       positionLabel = duty ?? '담당'
     }
-    return {
-      department: s.dept,
-      start: s.start,
-      end: s.end,
+    rows.push({
+      department: dept,
+      start,
+      end,
       positionLabel,
-    }
-  })
+    })
+  }
 
-  withPos.sort((a, b) => b.start.getTime() - a.start.getTime())
-  return withPos
+  return rows
 }
 
 export function makeCareerIssueNo(): string {
@@ -589,25 +596,31 @@ export function makeCareerIssueNo(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}-${String(Math.floor(Math.random() * 9000) + 1000)}`
 }
 
-export function buildCareerCertificateModel(
+export function parseCareerRecordFromBuffer(
   buf: ArrayBuffer,
   empId: string,
-  jobType: string,
-): CareerCertificateModel {
+): { parsed: CareerRecordParseResult; empMatchedInSheet: boolean } {
   const { matrix, sheetName, empMatchedInSheet } = findSheetMatrixForEmpId(buf, empId)
   const parsed = parseCareerRecordSheet(matrix, sheetName)
+  return { parsed, empMatchedInSheet }
+}
+
+export function buildCareerCertificateModelFromParsed(
+  parsed: CareerRecordParseResult,
+  empId: string,
+  jobType: string,
+  empMatchedInSheet = true,
+): CareerCertificateModel {
   const rows = buildCareerRows(parsed, jobType)
   const issueNo = makeCareerIssueNo()
-
   const warnings = [...parsed.warnings]
   if (!empMatchedInSheet && normEmpId(empId)) {
     warnings.unshift(
-      `입력한 사번「${empId}」이(가) 엑셀에서 검색되지 않아 첫 시트「${sheetName}」을(를) 사용했습니다. (인당 1시트 양식이면 무시해도 됩니다.)`,
+      `입력한 사번「${empId}」이(가) 파일에서 검색되지 않아 첫 시트·문서를 사용했습니다. (인당 1시트 양식이면 무시해도 됩니다.)`,
     )
   }
-
   return {
-    sheetName,
+    sheetName: parsed.sheetName,
     issueNo,
     name: parsed.name,
     birthYmd: parsed.birthYmd,
@@ -618,6 +631,15 @@ export function buildCareerCertificateModel(
     rows,
     warnings,
   }
+}
+
+export function buildCareerCertificateModel(
+  buf: ArrayBuffer,
+  empId: string,
+  jobType: string,
+): CareerCertificateModel {
+  const { parsed, empMatchedInSheet } = parseCareerRecordFromBuffer(buf, empId)
+  return buildCareerCertificateModelFromParsed(parsed, empId, jobType, empMatchedInSheet)
 }
 
 export type CareerCertificatePrintOpts = {
@@ -633,17 +655,14 @@ export function careerCertificateDocumentHtml(m: CareerCertificateModel, opts: C
       (r) => `
     <tr>
       <td style="padding:4px 6px;border:1px solid #333;">${escapeHtml(r.department)}</td>
-      <td style="padding:4px 6px;border:1px solid #333;text-align:center;">${escapeHtml(fmt(r.start))}</td>
-      <td style="padding:4px 6px;border:1px solid #333;text-align:center;">~</td>
-      <td style="padding:4px 6px;border:1px solid #333;text-align:center;">${escapeHtml(fmt(r.end))}</td>
+      <td style="padding:4px 6px;border:1px solid #333;text-align:center;">${escapeHtml(`${fmtDots(r.start)} ~ ${fmtDots(r.end)}`)}</td>
       <td style="padding:4px 6px;border:1px solid #333;text-align:center;">${escapeHtml(r.positionLabel)}</td>
     </tr>`,
     )
     .join('')
 
-  const sealBlock = opts.officerVerified
-    ? `<div title="관인" style="width:54px;height:54px;border:2.5px solid #b91c1c;border-radius:3px;display:flex;align-items:center;justify-content:center;color:#b91c1c;font-weight:bold;font-size:15pt;letter-spacing:-1px;transform:rotate(-10deg);user-select:none;">印</div><div class="t8" style="margin-top:2px;">위치</div>`
-    : `<div style="width:54px;height:54px;border:1px dashed #ccc;display:flex;align-items:center;justify-content:center;color:#bbb;font-size:9pt;">관인<br/>없음</div><div class="t8" style="margin-top:2px;color:#bbb;">위치</div>`
+  const sealBlock = certificateSealStampHtml(opts.officerVerified)
+  const letterheadBlock = certificateLetterheadHtml()
 
   return `<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"/><title>경력증명서</title>
   <style>
@@ -655,8 +674,8 @@ export function careerCertificateDocumentHtml(m: CareerCertificateModel, opts: C
     table.grid { border-collapse: collapse; width: 100%; margin-top: 10px; }
     table.grid th { font-size: 10pt; border:1px solid #333; padding:6px; background:#f6f6f6; }
   </style></head><body>
-  <div class="t10" style="display:flex;justify-content:space-between;align-items:flex-start;">
-    <div>${sealBlock}</div>
+  ${letterheadBlock}
+  <div class="t10" style="display:flex;justify-content:flex-end;align-items:flex-start;">
     <div style="text-align:right;">발급번호: ${escapeHtml(opts.issueNo)}</div>
   </div>
   <div class="t13" style="text-align:center;margin:16px 0 12px;">경력증명서</div>
@@ -671,14 +690,18 @@ export function careerCertificateDocumentHtml(m: CareerCertificateModel, opts: C
   <div class="t10" style="margin-top:12px;font-weight:600;">경력사항</div>
   <table class="grid">
     <thead><tr>
-      <th>근무부서</th><th colspan="3">근무기간</th><th>직위</th>
+      <th>근무부서</th><th>근무기간</th><th>직위</th>
     </tr></thead>
-    <tbody>${rowHtml || `<tr><td colspan="5" style="padding:8px;border:1px solid #333;text-align:center;">근무기록에서 추출된 행이 없습니다.</td></tr>`}</tbody>
+    <tbody>${rowHtml || `<tr><td colspan="3" style="padding:8px;border:1px solid #333;text-align:center;">근무기록에서 추출된 행이 없습니다.</td></tr>`}</tbody>
   </table>
   <div class="t10" style="margin-top:20px;text-align:center;">위 사실을 증명합니다.</div>
   <div class="t10" style="text-align:center;margin-top:8px;">${escapeHtml(todayKo)}</div>
-  <div class="t10" style="text-align:center;margin-top:12px;font-weight:600;">광주과학기술원 총장</div>
-  <p class="t8" style="margin-top:16px;">${opts.officerVerified ? '이 증명은 전자관인으로 인증된 증명입니다.' : '※ 담당자 확인 전 발급 시범(TEST)입니다. 전자관인 문구는 확인 후 발급 시에만 표시됩니다.'}</p>
+  <div style="display:flex;justify-content:center;align-items:flex-end;gap:14px;margin-top:12px;">
+    <div class="t10" style="font-weight:600;">광주과학기술원 총장</div>
+    <div>${sealBlock}</div>
+  </div>
+  <div style="margin-top:18px;border-top:1px solid #cbd5e1;"></div>
+  <p class="t8" style="margin-top:10px;">${opts.officerVerified ? '이 증명은 전자관인으로 인증된 증명입니다.' : '※ 담당자 확인 전 발급 시범(TEST)입니다. 전자관인 문구는 확인 후 발급 시에만 표시됩니다.'}</p>
   <p class="t8">발급자: 광주과학기술원 인사팀 &nbsp; Tel. 062-715-5043 &nbsp; Fax. 062-715-5049</p>
   </body></html>`
 }

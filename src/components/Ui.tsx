@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 export function Card({
   code,
   title,
+  desc,
   actions,
   children,
 }: {
@@ -22,6 +23,7 @@ export function Card({
             </span>
             <h2 className="text-lg font-semibold tracking-tight text-slate-900">{title}</h2>
           </div>
+          {desc ? <p className="mt-2 text-sm leading-relaxed text-slate-600">{desc}</p> : null}
         </div>
         {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
       </div>

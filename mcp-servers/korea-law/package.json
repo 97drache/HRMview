@@ -1,0 +1,12 @@
+{
+  "name": "hrm-korea-law-mcp",
+  "private": true,
+  "version": "0.1.0",
+  "type": "commonjs",
+  "bin": {
+    "hrm-korea-law-mcp": "./index.cjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1"
+  }
+}

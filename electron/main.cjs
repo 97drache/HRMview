@@ -2,12 +2,26 @@ const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron')
 const fs = require('fs')
 const path = require('path')
 const { pathToFileURL } = require('url')
+const {
+  getDataDirectory,
+  ensureDataDirectory,
+  getHrdataPath,
+  getHrdataMtimeMs,
+} = require('./dataDirectory.cjs')
+const {
+  shouldExportToday,
+  publishHeadcountSnapshot,
+  getHeadcountExportStatus,
+  loadAppEnv,
+} = require('./headcountPublish.cjs')
 const { buildTripProofHtml } = require('./tripProofHtml.cjs')
 const { buildExpenseProofHtml } = require('./expenseProofHtml.cjs')
+const { buildAttachProofHtml } = require('./attachProofHtml.cjs')
+const { mergeAttachProofPdf } = require('./attachProofMerge.cjs')
 const { printHtmlFileToPdf } = require('./printHtmlPdf.cjs')
 const { parseReceiptImageFiles } = require('./receiptParse.cjs')
-const { collectProofImages } = require('./proofImages.cjs')
-const { formatWonLine } = require('./koreanWon.cjs')
+const { collectProofImages, resolvePickedProofFiles } = require('./proofImages.cjs')
+const { formatWonLine, formatWonComma } = require('./koreanWon.cjs')
 const { prepareReceiptImage } = require('./receiptImagePrepare.cjs')
 const {
   getGeminiStatus,
@@ -15,20 +29,21 @@ const {
   analyzeReceiptImages,
   parseExpenseVoiceText,
   parseTripVoiceText,
+  analyzeTripImages,
+  analyzeCareerRecordPdf,
+  analyzeLeaveRecordPdf,
+  analyzeRetirementRecordPdf,
 } = require('./gemini.cjs')
-
-function getDataDirectory() {
-  if (app.isPackaged) {
-    return path.join(process.resourcesPath, 'data')
-  }
-  return path.join(__dirname, '..', 'data')
-}
-
-function ensureDataDirectory() {
-  const dir = getDataDirectory()
-  fs.mkdirSync(dir, { recursive: true })
-  return dir
-}
+const {
+  getLawStatus,
+  searchLaws,
+  getLawBody,
+  getRecentHrLawChanges,
+  resolveMajorLaws,
+} = require('./lawOpenApi.cjs')
+const { HR_MAJOR_LAW_NAMES, HR_RECENT_LAW_BASE_NAMES } = require('./hrLawConfig.cjs')
+const { getRegulationsStatus, ensureRegulationsDirectory } = require('./gistRegulations.cjs')
+const { runRegulationLawCompare } = require('./lawRegulationCompare.cjs')
 
 /** 로컬 전용: 외부 웹 콘텐츠 로드 차단 */
 function lockNavigation(win) {
@@ -108,20 +123,79 @@ function registerIpc() {
     await shell.openPath(dir)
   })
 
+  ipcMain.handle('hrm:get-hrdata-mtime', () => getHrdataMtimeMs())
+
+  ipcMain.handle('hrm:should-export-headcount-today', () => shouldExportToday())
+
+  ipcMain.handle('hrm:publish-headcount-snapshot', async (_e, jsonStr) => {
+    if (typeof jsonStr !== 'string' || !jsonStr.trim()) {
+      throw new Error('스냅샷 JSON이 비어 있습니다.')
+    }
+    return publishHeadcountSnapshot(jsonStr)
+  })
+
+  ipcMain.handle('hrm:get-headcount-export-status', () => getHeadcountExportStatus())
+
   const getProofFolderPath = () => path.join(app.getPath('desktop'), '증빙폴더')
   const ensureProofFolderPath = () => {
     const dir = getProofFolderPath()
     fs.mkdirSync(dir, { recursive: true })
     return dir
   }
-  const assertProofImageInsideFolder = (filePath) => {
-    const base = path.resolve(ensureProofFolderPath())
+  const assertProofFileReadable = (filePath) => {
     const target = path.resolve(String(filePath))
-    const rel = path.relative(base, target)
-    if (rel.startsWith('..') || path.isAbsolute(rel)) {
-      throw new Error('증빙폴더 안의 파일만 읽을 수 있습니다.')
+    let st
+    try {
+      st = fs.statSync(target)
+    } catch {
+      throw new Error('파일을 찾을 수 없습니다.')
     }
+    if (!st.isFile()) throw new Error('파일이 아닙니다.')
   }
+
+  ipcMain.handle('hrm:pick-proof-files', async () => {
+    const win = BrowserWindow.getFocusedWindow()
+    const { canceled, filePaths } = await dialog.showOpenDialog(win ?? undefined, {
+      title: '증빙 파일 선택',
+      properties: ['openFile', 'multiSelections'],
+      filters: [
+        { name: '이미지·PDF', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'pdf'] },
+        { name: '모든 파일', extensions: ['*'] },
+      ],
+    })
+    if (canceled || !filePaths?.length) return { paths: [] }
+    return { paths: filePaths }
+  })
+
+  ipcMain.handle('hrm:pick-career-record-files', async () => {
+    const win = BrowserWindow.getFocusedWindow()
+    const proofRoot = ensureProofFolderPath()
+    const { canceled, filePaths } = await dialog.showOpenDialog(win ?? undefined, {
+      title: '인사기록부 선택 (증빙폴더에 두신 파일)',
+      defaultPath: proofRoot,
+      properties: ['openFile'],
+      filters: [
+        { name: '인사기록부', extensions: ['pdf', 'xlsx'] },
+        { name: 'PDF', extensions: ['pdf'] },
+        { name: '엑셀', extensions: ['xlsx'] },
+      ],
+    })
+    if (canceled || !filePaths?.length) return { paths: [] }
+    return { paths: filePaths }
+  })
+
+  ipcMain.handle('hrm:read-career-record-file', async (_e, filePath) => {
+    const p = path.resolve(String(filePath ?? ''))
+    assertProofFileReadable(p)
+    const buf = await fs.promises.readFile(p)
+    return buf
+  })
+
+  ipcMain.handle('hrm:resolve-proof-files', async (_e, payload) => {
+    const paths = Array.isArray(payload?.paths) ? payload.paths.map(String).filter(Boolean) : []
+    const cacheRoot = path.join(app.getPath('userData'), 'proof-pick-cache')
+    return resolvePickedProofFiles(paths, cacheRoot)
+  })
 
   ipcMain.handle('hrm:list-proof-images', async (_e, opts) => {
     const dateFolder = opts?.dateFolder ? String(opts.dateFolder) : ''
@@ -145,9 +219,23 @@ function registerIpc() {
   })
 
   ipcMain.handle('hrm:gemini-analyze-receipt', async (_e, payload) => {
+    const explicitPaths = Array.isArray(payload?.imagePaths)
+      ? payload.imagePaths.map(String).filter(Boolean)
+      : []
+    if (explicitPaths.length > 0) {
+      try {
+        return await analyzeReceiptImages(explicitPaths, geminiUserData())
+      } catch (err) {
+        return {
+          ok: false,
+          configured: true,
+          message: err instanceof Error ? err.message : String(err),
+        }
+      }
+    }
     const dateFolder = String(payload?.dateFolder ?? '')
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateFolder)) {
-      return { ok: false, configured: true, message: '날짜는 yyyy-MM-dd 형식이어야 합니다.' }
+      return { ok: false, configured: true, message: '분석할 영수증 파일을 선택해 주세요.' }
     }
     try {
       const root = ensureProofFolderPath()
@@ -158,7 +246,7 @@ function registerIpc() {
       const amount = result.amount || 0
       return {
         ...result,
-        amountLine: amount > 0 ? formatWonLine(amount) : '',
+        amountLine: amount > 0 ? formatWonComma(amount) : '',
         bankAmount: amount > 0 ? amount.toLocaleString('ko-KR') : '',
         folder: collected.folder,
         imageCount: collected.files.length,
@@ -187,6 +275,71 @@ function registerIpc() {
   ipcMain.handle('hrm:gemini-parse-trip-voice', async (_e, payload) => {
     try {
       return await parseTripVoiceText(payload?.text, geminiUserData())
+    } catch (err) {
+      return {
+        ok: false,
+        configured: true,
+        message: err instanceof Error ? err.message : String(err),
+      }
+    }
+  })
+
+  ipcMain.handle('hrm:gemini-analyze-career-record', async (_e, payload) => {
+    try {
+      const filePath = String(payload?.filePath ?? '')
+      if (!filePath) return { ok: false, configured: true, message: '파일 경로가 없습니다.' }
+      return await analyzeCareerRecordPdf(filePath, geminiUserData(), payload)
+    } catch (err) {
+      return { ok: false, configured: true, message: err instanceof Error ? err.message : String(err) }
+    }
+  })
+
+  ipcMain.handle('hrm:gemini-analyze-leave-record', async (_e, payload) => {
+    try {
+      const filePath = String(payload?.filePath ?? '')
+      if (!filePath) return { ok: false, configured: true, message: '파일 경로가 없습니다.' }
+      return await analyzeLeaveRecordPdf(filePath, geminiUserData(), payload)
+    } catch (err) {
+      return { ok: false, configured: true, message: err instanceof Error ? err.message : String(err) }
+    }
+  })
+
+  ipcMain.handle('hrm:gemini-analyze-retirement-record', async (_e, payload) => {
+    try {
+      const filePath = String(payload?.filePath ?? '')
+      if (!filePath) return { ok: false, configured: true, message: '파일 경로가 없습니다.' }
+      return await analyzeRetirementRecordPdf(filePath, geminiUserData(), payload)
+    } catch (err) {
+      return { ok: false, configured: true, message: err instanceof Error ? err.message : String(err) }
+    }
+  })
+
+  ipcMain.handle('hrm:gemini-analyze-trip', async (_e, payload) => {
+    const explicitPaths = Array.isArray(payload?.imagePaths)
+      ? payload.imagePaths.map(String).filter(Boolean)
+      : []
+    if (explicitPaths.length > 0) {
+      try {
+        return await analyzeTripImages(explicitPaths, geminiUserData())
+      } catch (err) {
+        return {
+          ok: false,
+          configured: true,
+          message: err instanceof Error ? err.message : String(err),
+        }
+      }
+    }
+    const dateFolder = String(payload?.dateFolder ?? '')
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateFolder)) {
+      return { ok: false, configured: true, message: '날짜는 yyyy-MM-dd 형식이어야 합니다.' }
+    }
+    try {
+      const root = ensureProofFolderPath()
+      const collected = await collectProofImages(root, dateFolder)
+      return await analyzeTripImages(
+        collected.files.map((f) => f.fullPath),
+        geminiUserData(),
+      )
     } catch (err) {
       return {
         ok: false,
@@ -226,7 +379,7 @@ function registerIpc() {
         merchantName: parsed.merchantName || '',
         businessNo: parsed.businessNo || '',
         amount,
-        amountLine: amount > 0 ? formatWonLine(amount) : '',
+        amountLine: amount > 0 ? formatWonComma(amount) : '',
         bankAmount: amount > 0 ? amount.toLocaleString('ko-KR') : '',
         merchantPhone: parsed.merchantPhone || '',
         imageCount: parsed.files?.length ?? 0,
@@ -253,7 +406,7 @@ function registerIpc() {
 
   /** 영수증 trim·리사이즈 후 data URL (6-1 미리보기) */
   ipcMain.handle('hrm:read-prepared-proof-image', async (_e, filePath) => {
-    assertProofImageInsideFolder(filePath)
+    assertProofFileReadable(filePath)
     const p = path.resolve(String(filePath))
     let st
     try {
@@ -264,24 +417,16 @@ function registerIpc() {
     if (!st.isFile()) throw new Error('파일이 아닙니다.')
     const tmp = path.join(app.getPath('temp'), `hrm-prep-view-${Date.now()}.jpg`)
     try {
-      await prepareReceiptImage(p, tmp)
+      await prepareReceiptImage(p, tmp, { userDataDir: app.getPath('userData') })
       const buf = await fs.promises.readFile(tmp)
       return `data:image/jpeg;base64,${buf.toString('base64')}`
-    } catch (err) {
-      const buf = await fs.promises.readFile(p)
-      const ext = path.extname(p).toLowerCase()
-      let mime = 'image/png'
-      if (ext === '.jpg' || ext === '.jpeg') mime = 'image/jpeg'
-      else if (ext === '.gif') mime = 'image/gif'
-      else if (ext === '.webp') mime = 'image/webp'
-      return `data:${mime};base64,${buf.toString('base64')}`
     } finally {
       await fs.promises.unlink(tmp).catch(() => {})
     }
   })
 
   ipcMain.handle('hrm:read-image-data-url', async (_e, filePath) => {
-    assertProofImageInsideFolder(filePath)
+    assertProofFileReadable(filePath)
     const p = path.resolve(String(filePath))
     let st
     try {
@@ -315,17 +460,16 @@ function registerIpc() {
       dateRange: String(payload?.dateRange ?? ''),
     }
     const imagePaths = Array.isArray(payload?.imagePaths) ? payload.imagePaths.map(String) : []
-    const dateFolder = String(payload?.dateFolder ?? '')
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateFolder)) {
-      throw new Error('폴더 날짜는 yyyy-MM-dd 형식이어야 합니다.')
-    }
     let fileName = path.basename(String(payload?.fileName ?? '출장증빙.pdf'))
     if (!/\.pdf$/i.test(fileName)) fileName += '.pdf'
 
-    const root = ensureProofFolderPath()
-    const targetDir = path.join(root, dateFolder)
-    fs.mkdirSync(targetDir, { recursive: true })
-    const filePath = path.join(targetDir, fileName)
+    const win = BrowserWindow.getFocusedWindow()
+    const { canceled, filePath } = await dialog.showSaveDialog(win ?? undefined, {
+      title: '출장 증빙 PDF 저장',
+      defaultPath: fileName,
+      filters: [{ name: 'PDF', extensions: ['pdf'] }],
+    })
+    if (canceled || !filePath) return { ok: false, canceled: true }
 
     const tmpDir = path.join(app.getPath('temp'), `hrm-trip-${Date.now()}`)
     const assetsDir = path.join(tmpDir, 'assets')
@@ -333,15 +477,11 @@ function registerIpc() {
 
     const relPaths = []
     for (let i = 0; i < imagePaths.length; i++) {
-      assertProofImageInsideFolder(imagePaths[i])
+      assertProofFileReadable(imagePaths[i])
       const src = path.resolve(imagePaths[i])
       const destName = `proof${i}.jpg`
       const destPath = path.join(assetsDir, destName)
-      try {
-        await prepareReceiptImage(src, destPath)
-      } catch {
-        await fs.promises.copyFile(src, destPath)
-      }
+      await prepareReceiptImage(src, destPath, { userDataDir: app.getPath('userData') })
       relPaths.push(`assets/${destName}`)
     }
 
@@ -361,12 +501,71 @@ function registerIpc() {
     }
   })
 
+  /** 증빙서 붙임란 → PDF (1p 양식+영수증, 2p~ 추가 첨부) */
+  ipcMain.handle('hrm:export-attach-proof-pdf', async (_e, payload) => {
+    const receiptPath = String(payload?.receiptPath ?? '')
+    if (!receiptPath) throw new Error('영수증 파일이 필요합니다.')
+
+    const extraPaths = Array.isArray(payload?.extraPaths) ? payload.extraPaths.map(String) : []
+    const amount = Number(payload?.amount) || 0
+    const bankAmount =
+      String(payload?.bankAmount ?? '').trim() ||
+      (amount > 0 ? amount.toLocaleString('ko-KR') : '')
+
+    let fileName = path.basename(String(payload?.fileName ?? '증빙서붙임.pdf'))
+    if (!/\.pdf$/i.test(fileName)) fileName += '.pdf'
+
+    const win = BrowserWindow.getFocusedWindow()
+    const { canceled, filePath } = await dialog.showSaveDialog(win ?? undefined, {
+      title: '증빙서 붙임란 PDF 저장',
+      defaultPath: fileName,
+      filters: [{ name: 'PDF', extensions: ['pdf'] }],
+    })
+    if (canceled || !filePath) return { ok: false, canceled: true }
+
+    const tmpDir = path.join(app.getPath('temp'), `hrm-attach-${Date.now()}`)
+    const assetsDir = path.join(tmpDir, 'assets')
+    fs.mkdirSync(assetsDir, { recursive: true })
+
+    const fontSrc = getNanumFontPath()
+    let fontRel = ''
+    if (fontSrc) {
+      const fontDest = path.join(assetsDir, 'NanumGothic.woff2')
+      await fs.promises.copyFile(fontSrc, fontDest)
+      fontRel = 'assets/NanumGothic.woff2'
+    }
+
+    assertProofFileReadable(receiptPath)
+    const receiptDest = path.join(assetsDir, 'receipt.jpg')
+    const receiptDataUrl = String(payload?.receiptDataUrl ?? '')
+    const m = receiptDataUrl.match(/^data:image\/\w+;base64,(.+)$/i)
+    if (m) {
+      await fs.promises.writeFile(receiptDest, Buffer.from(m[1], 'base64'))
+    } else {
+      await prepareReceiptImage(path.resolve(receiptPath), receiptDest, {
+        userDataDir: app.getPath('userData'),
+      })
+    }
+
+    const html = buildAttachProofHtml({ bankAmount }, 'assets/receipt.jpg', fontRel)
+    const htmlPath = path.join(tmpDir, 'index.html')
+    await fs.promises.writeFile(htmlPath, html, 'utf8')
+
+    try {
+      const coverPdf = await printHtmlFileToPdf(htmlPath, {
+        imageWaitMs: 4000,
+        preferCSSPageSize: true,
+      })
+      const pdfBuf = await mergeAttachProofPdf(coverPdf, extraPaths)
+      await fs.promises.writeFile(filePath, pdfBuf)
+      return { ok: true, filePath, canceled: false }
+    } finally {
+      await fs.promises.rm(tmpDir, { recursive: true, force: true }).catch(() => {})
+    }
+  })
+
   /** 업무추진비류 집행내역서(지출증빙) → PDF */
   ipcMain.handle('hrm:export-expense-proof-pdf', async (_e, payload) => {
-    const dateFolder = String(payload?.dateFolder ?? '')
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateFolder)) {
-      throw new Error('폴더 날짜는 yyyy-MM-dd 형식이어야 합니다.')
-    }
     const fields = {
       dept: '인사팀',
       dateTime: String(payload?.dateTime ?? ''),
@@ -385,9 +584,13 @@ function registerIpc() {
     let fileName = path.basename(String(payload?.fileName ?? '지출증빙_업무추진비.pdf'))
     if (!/\.pdf$/i.test(fileName)) fileName += '.pdf'
 
-    const targetDir = path.join(ensureProofFolderPath(), dateFolder)
-    fs.mkdirSync(targetDir, { recursive: true })
-    const filePath = path.join(targetDir, fileName)
+    const win = BrowserWindow.getFocusedWindow()
+    const { canceled, filePath } = await dialog.showSaveDialog(win ?? undefined, {
+      title: '지출증빙 PDF 저장',
+      defaultPath: fileName,
+      filters: [{ name: 'PDF', extensions: ['pdf'] }],
+    })
+    if (canceled || !filePath) return { ok: false, canceled: true }
 
     const tmpDir = path.join(app.getPath('temp'), `hrm-expense-${Date.now()}`)
     const assetsDir = path.join(tmpDir, 'assets')
@@ -401,16 +604,22 @@ function registerIpc() {
       fontRel = 'assets/NanumGothic.woff2'
     }
 
+    const imageDataUrls = Array.isArray(payload?.imageDataUrls)
+      ? payload.imageDataUrls.map(String)
+      : []
+    const userDataDir = app.getPath('userData')
     const relPaths = []
     for (let i = 0; i < imagePaths.length; i++) {
-      assertProofImageInsideFolder(imagePaths[i])
-      const src = path.resolve(imagePaths[i])
+      assertProofFileReadable(imagePaths[i])
       const destName = `proof${i}.jpg`
       const destPath = path.join(assetsDir, destName)
-      try {
-        await prepareReceiptImage(src, destPath)
-      } catch {
-        await fs.promises.copyFile(src, destPath)
+      const dataUrl = imageDataUrls[i]
+      const m = typeof dataUrl === 'string' ? dataUrl.match(/^data:image\/\w+;base64,(.+)$/i) : null
+      if (m) {
+        await fs.promises.writeFile(destPath, Buffer.from(m[1], 'base64'))
+      } else {
+        const src = path.resolve(imagePaths[i])
+        await prepareReceiptImage(src, destPath, { userDataDir })
       }
       relPaths.push(`assets/${destName}`)
     }
@@ -441,38 +650,110 @@ function registerIpc() {
     })
     if (canceled || !filePath) return { ok: false, canceled: true }
 
-    const tmp = path.join(app.getPath('temp'), `hrm-cert-${Date.now()}.html`)
-    await fs.promises.writeFile(tmp, html, 'utf8')
-    const docWin = new BrowserWindow({
-      show: false,
-      webPreferences: {
-        sandbox: true,
-        contextIsolation: true,
-      },
-    })
+    const tmpDir = path.join(app.getPath('temp'), `hrm-cert-${Date.now()}`)
+    const htmlPath = path.join(tmpDir, 'index.html')
+    await fs.promises.mkdir(tmpDir, { recursive: true })
+    await fs.promises.writeFile(htmlPath, html, 'utf8')
     try {
-      await docWin.loadFile(tmp)
-      await new Promise((resolve, reject) => {
-        const t = setTimeout(() => reject(new Error('문서 로드 시간 초과')), 30000)
-        docWin.webContents.once('did-fail-load', (_ev, code, desc) => {
-          clearTimeout(t)
-          reject(new Error(desc || `로드 실패 ${code}`))
-        })
-        docWin.webContents.once('did-finish-load', () => {
-          clearTimeout(t)
-          resolve(undefined)
-        })
-      })
-      const pdfBuf = await docWin.webContents.printToPDF({
-        printBackground: true,
-        marginsType: 0,
-        pageSize: 'A4',
-      })
+      const pdfBuf = await printHtmlFileToPdf(htmlPath, { imageWaitMs: 800, preferCSSPageSize: true })
       await fs.promises.writeFile(filePath, pdfBuf)
       return { ok: true, filePath }
     } finally {
-      if (docWin && !docWin.isDestroyed()) docWin.destroy()
-      await fs.promises.unlink(tmp).catch(() => {})
+      await fs.promises.rm(tmpDir, { recursive: true, force: true }).catch(() => {})
+    }
+  })
+
+  const lawUserData = () => app.getPath('userData')
+
+  ipcMain.handle('hrm:law-status', () => getLawStatus(lawUserData()))
+
+  ipcMain.handle('hrm:law-search', async (_e, payload) => {
+    try {
+      return await searchLaws(lawUserData(), {
+        query: String(payload?.query ?? ''),
+        page: Number(payload?.page) || 1,
+        display: Number(payload?.display) || 20,
+      })
+    } catch (err) {
+      return {
+        ok: false,
+        configured: Boolean(getLawStatus(lawUserData()).configured),
+        message: err instanceof Error ? err.message : String(err),
+      }
+    }
+  })
+
+  ipcMain.handle('hrm:law-body', async (_e, payload) => {
+    try {
+      return await getLawBody(lawUserData(), {
+        mst: payload?.mst ? String(payload.mst) : undefined,
+        lawId: payload?.lawId ? String(payload.lawId) : undefined,
+        jo: payload?.jo ? String(payload.jo) : undefined,
+      })
+    } catch (err) {
+      return {
+        ok: false,
+        configured: Boolean(getLawStatus(lawUserData()).configured),
+        message: err instanceof Error ? err.message : String(err),
+      }
+    }
+  })
+
+  ipcMain.handle('hrm:law-recent-changes', async (_e, payload) => {
+    try {
+      return await getRecentHrLawChanges(lawUserData(), {
+        days: Number(payload?.days) || 365,
+        lawBases: HR_RECENT_LAW_BASE_NAMES,
+        strictFilter: true,
+      })
+    } catch (err) {
+      return {
+        ok: false,
+        configured: Boolean(getLawStatus(lawUserData()).configured),
+        message: err instanceof Error ? err.message : String(err),
+      }
+    }
+  })
+
+  ipcMain.handle('hrm:law-resolve-major', async () => {
+    try {
+      return await resolveMajorLaws(lawUserData(), HR_MAJOR_LAW_NAMES)
+    } catch (err) {
+      return {
+        ok: false,
+        configured: Boolean(getLawStatus(lawUserData()).configured),
+        message: err instanceof Error ? err.message : String(err),
+      }
+    }
+  })
+
+  ipcMain.handle('hrm:law-open-external', async (_e, url) => {
+    const u = String(url ?? '').trim()
+    if (!u.startsWith('http://') && !u.startsWith('https://')) {
+      throw new Error('허용되지 않는 URL입니다.')
+    }
+    await shell.openExternal(u)
+  })
+
+  ipcMain.handle('hrm:gist-reg-status', () => getRegulationsStatus())
+
+  ipcMain.handle('hrm:gist-reg-open-folder', async () => {
+    const dir = ensureRegulationsDirectory()
+    const err = await shell.openPath(dir)
+    if (err) throw new Error(err)
+    return { ok: true, folder: dir }
+  })
+
+  ipcMain.handle('hrm:law-reg-compare', async (_e, payload) => {
+    try {
+      return await runRegulationLawCompare(lawUserData(), {
+        keyword: String(payload?.keyword ?? ''),
+      })
+    } catch (err) {
+      return {
+        ok: false,
+        message: err instanceof Error ? err.message : String(err),
+      }
     }
   })
 }
@@ -500,7 +781,64 @@ async function loadRenderer(win) {
   }
 }
 
+let hrdataWatchTarget = null
+let headcountScheduleTimer = null
+
+function requestHeadcountExport(win) {
+  if (!win || win.isDestroyed()) return
+  if (!shouldExportToday()) return
+  win.webContents.send('hrm:request-headcount-export')
+}
+
+function scheduleHeadcountExport(win) {
+  if (headcountScheduleTimer) clearInterval(headcountScheduleTimer)
+  const tick = () => requestHeadcountExport(win)
+  tick()
+  headcountScheduleTimer = setInterval(tick, 60 * 60 * 1000)
+}
+
+function watchHrdataFile(win) {
+  const file = getHrdataPath()
+  if (hrdataWatchTarget === file) return
+  if (hrdataWatchTarget) {
+    try {
+      fs.unwatchFile(hrdataWatchTarget)
+    } catch {
+      /* ignore */
+    }
+  }
+  hrdataWatchTarget = file
+  if (!fs.existsSync(file)) return
+
+  let lastMtime = getHrdataMtimeMs()
+  fs.watchFile(file, { interval: 1500 }, (curr, prev) => {
+    if (curr.mtimeMs === prev.mtimeMs) return
+    if (lastMtime != null && curr.mtimeMs === lastMtime) return
+    lastMtime = curr.mtimeMs
+    if (!win || win.isDestroyed()) return
+    win.webContents.send('hrm:hrdata-changed', { mtimeMs: curr.mtimeMs })
+  })
+}
+
+function setupHrdataReloadOnFocus(win) {
+  let lastMtime = getHrdataMtimeMs()
+  const check = () => {
+    const m = getHrdataMtimeMs()
+    if (m == null || lastMtime == null) {
+      lastMtime = m
+      return
+    }
+    if (m !== lastMtime) {
+      lastMtime = m
+      win.webContents.send('hrm:hrdata-changed', { mtimeMs: m })
+    }
+  }
+  win.on('focus', check)
+  win.on('show', check)
+}
+
 function createWindow() {
+  const iconPath = path.join(__dirname, '..', 'build', 'icon.png')
   const win = new BrowserWindow({
     width: 1440,
     height: 900,
@@ -508,6 +846,7 @@ function createWindow() {
     minHeight: 720,
     show: false,
     title: 'HRM 로컬 대시보드',
+    ...(fs.existsSync(iconPath) ? { icon: iconPath } : {}),
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
@@ -528,12 +867,18 @@ function createWindow() {
   })
 
   win.once('ready-to-show', () => win.show())
+  win.webContents.once('did-finish-load', () => {
+    watchHrdataFile(win)
+    scheduleHeadcountExport(win)
+  })
+  setupHrdataReloadOnFocus(win)
   void loadRenderer(win).catch(() => {
     if (!win.isDestroyed()) win.show()
   })
 }
 
 app.whenReady().then(() => {
+  loadAppEnv()
   ensureDataDirectory()
   registerIpc()
   createWindow()

@@ -7,8 +7,8 @@
 @theme {
   --font-sans: 'Malgun Gothic', 'Apple SD Gothic Neo', 'Segoe UI', system-ui, sans-serif;
   --color-hc-hero: #006b00;
-  --color-hc-card: #e0e0e0;
-  --color-hc-page: #f2f2f2;
+  --color-hc-card: #ffffff;
+  --color-hc-page: #ffffff;
 }
 
 @layer base {
@@ -22,7 +22,7 @@
     margin: 0;
     font-family: var(--font-sans);
     color: #1a1a1a;
-    background: #f2f2f2;
+    background: #ffffff;
     -webkit-font-smoothing: antialiased;
   }
   #root {

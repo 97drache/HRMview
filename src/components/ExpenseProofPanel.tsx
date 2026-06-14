@@ -9,7 +9,6 @@ import {
 } from '../lib/expenseAttendees'
 import { formatWonComma, parseWonAmount } from '../lib/koreanWon'
 import {
-  downloadTextFile,
   exportExpenseProofPdf,
   geminiAnalyzeReceiptImages,
   isDesktopApp,
@@ -18,6 +17,7 @@ import {
   resolveProofFiles,
   type ProofMediaFile,
 } from '../lib/desktopBridge'
+import { exportProofHtmlAsPdf } from '../lib/webProofExport'
 import { applyGeminiReceipt } from '../lib/geminiExpense'
 
 const DEFAULT_PURPOSE = '업무협의'
@@ -110,6 +110,15 @@ export function ExpenseProofPanel({ webMode = false }: { webMode?: boolean }) {
         applyGeminiReceipt(r, receiptSetters, forceOverwrite, userEditedRef.current)
         setPurpose((p) => (p.trim() ? p : DEFAULT_PURPOSE))
         if (r.message) setStatusMsg(r.message)
+        const urls: string[] = []
+        for (const p of paths) {
+          try {
+            urls.push(await readPreparedProofImage(p))
+          } catch {
+            /* preview refresh skip */
+          }
+        }
+        if (urls.length > 0) setImageDataUrls(urls)
       } catch (e) {
         if (gen === analyzeGenRef.current) {
           setStatusMsg(e instanceof Error ? e.message : String(e))
@@ -319,8 +328,7 @@ export function ExpenseProofPanel({ webMode = false }: { webMode?: boolean }) {
         merchantPhone: merchantPhone.trim(),
         imageSrcs: imageDataUrls,
       })
-      downloadTextFile(pdfNameFromDateTime(dateTime).replace(/\.pdf$/i, '.html'), html, 'text/html;charset=utf-8')
-      setPdfMsg('HTML 파일을 저장했습니다. 브라우저에서 열어 인쇄→PDF로 저장할 수 있습니다.')
+      setPdfMsg(exportProofHtmlAsPdf(html, pdfNameFromDateTime(dateTime)))
       return
     }
     if (!desktop) {
@@ -340,6 +348,8 @@ export function ExpenseProofPanel({ webMode = false }: { webMode?: boolean }) {
         bankAmount: finalAmount.toLocaleString('ko-KR'),
         merchantPhone: merchantPhone.trim(),
         imagePaths: selectedFiles.map((f) => f.fullPath),
+        imageDataUrls:
+          imageDataUrls.length === selectedFiles.length ? imageDataUrls : undefined,
         fileName: pdfNameFromDateTime(dateTime),
       })
       if (r.canceled) setPdfMsg('저장이 취소되었습니다.')
@@ -548,7 +558,7 @@ export function ExpenseProofPanel({ webMode = false }: { webMode?: boolean }) {
             onClick={() => void handlePdf()}
             className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
           >
-            {pdfBusy ? 'PDF 생성 중…' : webMode ? 'HTML 저장' : 'PDF 저장'}
+            {pdfBusy ? 'PDF 생성 중…' : 'PDF 저장'}
           </button>
           {pdfMsg ? (
             <pre className="whitespace-pre-wrap rounded-lg border border-emerald-200 bg-emerald-50/90 px-3 py-2 text-xs text-emerald-950">

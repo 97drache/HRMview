@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react'
 import { SB } from '../lib/headcountWebTheme'
 
-/** 공개 인원현황 웹 — 1-0·1-5 통일 레이아웃 (목업: 회색 바탕 + 녹색 히어로 + 회색 카드) */
+/** 공개 인원현황 웹 — 밝은 흰 배경 + 녹색 히어로 */
 export const HC = {
-  pageBg: '#F2F2F2',
-  card: '#E0E0E0',
-  cardInner: '#F0F0F0',
+  pageBg: '#FFFFFF',
+  card: '#FFFFFF',
+  cardInner: '#F8FAFC',
   hero: '#006B00',
   label: '#666666',
   value: '#1A1A1A',
@@ -44,7 +44,7 @@ export function HcSubHero({ code, title }: { code: string; title: string }) {
 /** KPI 한 칸 (2열 그리드용) */
 export function HcMetricCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex min-h-[7.5rem] w-full min-w-0 flex-col items-center justify-center rounded-[1.25rem] bg-[#E0E0E0] px-3 py-6 text-center sm:min-h-[8rem]">
+    <div className="flex min-h-[7.5rem] w-full min-w-0 flex-col items-center justify-center rounded-[1.25rem] border border-slate-200 bg-white px-3 py-6 text-center shadow-sm sm:min-h-[8rem]">
       <p className="text-sm font-medium text-[#666666]">{label}</p>
       <p className="mt-3 text-xl font-bold leading-snug tabular-nums text-[#1A1A1A] sm:text-2xl">
         {value}
@@ -64,7 +64,7 @@ export function HcBlock({
   className?: string
 }) {
   return (
-    <section className={`rounded-[1.25rem] bg-[#E0E0E0] px-4 py-5 sm:px-5 sm:py-6 ${className}`}>
+    <section className={`rounded-[1.25rem] border border-slate-200 bg-white px-4 py-5 shadow-sm sm:px-5 sm:py-6 ${className}`}>
       {title ? (
         <h3 className="mb-4 text-center text-sm font-semibold text-[#444444]">{title}</h3>
       ) : null}
@@ -76,6 +76,6 @@ export function HcBlock({
 /** 표 감싸기 — 회색 카드 안 연한 배경 */
 export function HcTableWrap({ children }: { children: ReactNode }) {
   return (
-    <div className="overflow-x-auto rounded-xl bg-[#F0F0F0] p-1 shadow-inner">{children}</div>
+    <div className="overflow-x-auto rounded-xl border border-slate-100 bg-slate-50/80 p-1">{children}</div>
   )
 }

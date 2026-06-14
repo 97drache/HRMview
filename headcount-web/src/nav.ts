@@ -7,30 +7,34 @@ export type HeadcountNav =
   | 'proof'
   | 'doc-6-1'
   | 'doc-6-2'
+  | 'doc-6-3'
 
-/** 하단·사이드바 6칸 (1-5 대신 증빙) */
+export type ProofSubNavKey = 'doc-6-1' | 'doc-6-2' | 'doc-6-3'
+
+/** 하단·사이드바 6칸 (1-5 대신 서류작성) */
 export const HEADCOUNT_NAV: { key: HeadcountNav; code: string; label: string }[] = [
   { key: 'home', code: '1-0', label: '한눈에 보기' },
   { key: 'p-1-1', code: '1-1', label: '직종별' },
   { key: 'p-1-2', code: '1-2', label: '남녀·고용' },
   { key: 'p-1-3', code: '1-3', label: '연도·직급' },
   { key: 'p-1-4', code: '1-4', label: '월초·월말' },
-  { key: 'proof', code: '증빙', label: '증빙' },
+  { key: 'proof', code: '6', label: '증빙' },
 ]
 
-export const PROOF_SUB_NAV: { key: 'doc-6-1' | 'doc-6-2'; code: string; label: string }[] = [
-  { key: 'doc-6-1', code: '6-1', label: '지급신청서 증빙' },
-  { key: 'doc-6-2', code: '6-2', label: '출장 증빙' },
+export const PROOF_SUB_NAV: { key: ProofSubNavKey; code: string; label: string }[] = [
+  { key: 'doc-6-1', code: '6-1', label: '지급신청서' },
+  { key: 'doc-6-2', code: '6-2', label: '증빙서붙임' },
+  { key: 'doc-6-3', code: '6-3', label: '출장 증빙' },
 ]
 
 const VALID = new Set<string>([
   ...HEADCOUNT_NAV.map((n) => n.key),
   ...PROOF_SUB_NAV.map((n) => n.key),
-  'p-1-5', // 구 링크 → 증빙
+  'p-1-5',
 ])
 
 export function isProofNav(key: HeadcountNav): boolean {
-  return key === 'proof' || key === 'doc-6-1' || key === 'doc-6-2'
+  return key === 'proof' || key === 'doc-6-1' || key === 'doc-6-2' || key === 'doc-6-3'
 }
 
 export function bottomNavKey(key: HeadcountNav): HeadcountNav {
@@ -60,9 +64,18 @@ export function ensureHomeHash(): void {
 }
 
 export function navTitle(key: HeadcountNav): string {
-  if (key === 'proof') return '증빙'
+  if (key === 'proof') return '서류작성'
   const main = HEADCOUNT_NAV.find((n) => n.key === key)
   if (main) return main.label
   const sub = PROOF_SUB_NAV.find((n) => n.key === key)
   return sub?.label ?? 'HRM'
+}
+
+export function defaultProofSubNav(): ProofSubNavKey {
+  return 'doc-6-1'
+}
+
+export function normalizeProofNav(key: HeadcountNav): ProofSubNavKey {
+  if (key === 'doc-6-2' || key === 'doc-6-3') return key
+  return 'doc-6-1'
 }

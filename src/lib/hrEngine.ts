@@ -486,6 +486,15 @@ export function childBirthYearFromLeaveChildInfo(raw: string): string {
   return m2?.[1] ?? ''
 }
 
+/** 임신기·육아기 단축 구간: 시작·종료일이 모두 있어야 인정 */
+export function hasValidPregnancyShort(row: LeaveRow): boolean {
+  return Boolean(row.pregnancyShortStart) && Boolean(row.pregnancyShortEnd)
+}
+
+export function hasValidChildcareShort(row: LeaveRow): boolean {
+  return Boolean(row.childcareShortStart) && Boolean(row.childcareShortEnd)
+}
+
 /** 본 휴직 사유가 육아휴직(류)인지 — 휴직종류·사유 문자열 기준 */
 function isChildcareLeaveReason(row: LeaveRow, reason: string): boolean {
   const k = String(row.leaveKind ?? '').replace(/\s+/g, '')
@@ -585,7 +594,71 @@ export type MaternityReportRow = {
   scheduled: boolean
 }
 
-/** 2-3: 출산휴가 종료 가까운 순, 하단 예정 성명(예정) */
+type PeriodBounds = { start: Date | null; end: Date | null }
+
+function periodCurrentAndUpcoming(
+  leave: LeaveRow[],
+  base: Date,
+  isValid: (row: LeaveRow) => boolean,
+  bounds: (row: LeaveRow) => PeriodBounds,
+) {
+  const current = leave.filter((r) => {
+    if (!isValid(r)) return false
+    const { start, end } = bounds(r)
+    return inRangeInclusive(base, start, end)
+  })
+  const upcoming = leave.filter((r) => {
+    if (!isValid(r)) return false
+    const { start } = bounds(r)
+    if (!start) return false
+    return startOfDay(start).getTime() > startOfDay(base).getTime()
+  })
+  return { current, upcoming }
+}
+
+function buildPeriodReport(
+  leave: LeaveRow[],
+  base: Date,
+  personnel: PersonnelRow[],
+  isValid: (row: LeaveRow) => boolean,
+  bounds: (row: LeaveRow) => PeriodBounds,
+  reasonLabel: string,
+): LeaveReportRow[] {
+  const { current, upcoming } = periodCurrentAndUpcoming(leave, base, isValid, bounds)
+  const sortedCur = [...current].sort((a, b) => endSortKey(bounds(a).end) - endSortKey(bounds(b).end))
+  const rows: LeaveReportRow[] = sortedCur.map((r) => {
+    const { start, end } = bounds(r)
+    return {
+      name: r.name,
+      rankCategory: rankCategoryForLeave(r, personnel),
+      gender: r.gender,
+      start: fmt(start),
+      end: fmt(end),
+      reason: reasonLabel,
+      childBirthYear: '',
+      scheduled: false,
+    }
+  })
+  const sortedUp = [...upcoming].sort(
+    (a, b) => endSortKey(bounds(a).start) - endSortKey(bounds(b).start),
+  )
+  for (const r of sortedUp) {
+    const { start, end } = bounds(r)
+    rows.push({
+      name: `${r.name}(예정)`,
+      rankCategory: rankCategoryForLeave(r, personnel),
+      gender: r.gender,
+      start: fmt(start),
+      end: fmt(end),
+      reason: `${reasonLabel} 예정`,
+      childBirthYear: '',
+      scheduled: true,
+    })
+  }
+  return rows
+}
+
+/** 2-2: 출산휴가 종료 가까운 순, 하단 예정 성명(예정) */
 export function buildMaternityReport(leave: LeaveRow[], base: Date, personnel: PersonnelRow[]): MaternityReportRow[] {
   const { current, upcoming } = maternityCurrentAndUpcoming(leave, base)
   const sortedCur = [...current].sort((a, b) => endSortKey(a.maternityEnd) - endSortKey(b.maternityEnd))
@@ -611,4 +684,187 @@ export function buildMaternityReport(leave: LeaveRow[], base: Date, personnel: P
     })
   }
   return rows
+}
+
+/** 2-3·2-4: 단축 구간이 해당 연도와 겹치는지 */
+export function periodOverlapsYear(start: Date | null, end: Date | null, year: number): boolean {
+  if (!start || !end) return false
+  const y0 = startOfDay(new Date(year, 0, 1)).getTime()
+  const y1 = startOfDay(new Date(year, 11, 31)).getTime()
+  const ps = startOfDay(start).getTime()
+  const pe = startOfDay(end).getTime()
+  return ps <= y1 && pe >= y0
+}
+
+function monthInYearForPeriod(start: Date, year: number): number {
+  if (start.getFullYear() === year) return start.getMonth() + 1
+  return 1
+}
+
+export type ShortWorkYearEntry = { name: string; start: string; end: string }
+export type ShortWorkYearMonthGroup = { month: number; entries: ShortWorkYearEntry[] }
+export type ShortWorkYearBlock = { category: string; monthGroups: ShortWorkYearMonthGroup[] }
+
+/** 2-3·2-4: 연도별 — 직급 구분·시작월(해당 연도)별 묶음 (3-1과 동일 패턴) */
+function buildShortWorkByYear(
+  leave: LeaveRow[],
+  year: number,
+  personnel: PersonnelRow[],
+  isValid: (row: LeaveRow) => boolean,
+  bounds: (row: LeaveRow) => PeriodBounds,
+): ShortWorkYearBlock[] {
+  const matched = leave.filter(
+    (r) => isValid(r) && periodOverlapsYear(bounds(r).start, bounds(r).end, year),
+  )
+  const byCat = new Map<string, LeaveRow[]>()
+  for (const r of matched) {
+    const cat = rankCategoryForLeave(r, personnel)
+    if (!byCat.has(cat)) byCat.set(cat, [])
+    byCat.get(cat)!.push(r)
+  }
+  const cats = [...byCat.keys()].sort((a, b) => movementRankSortIndex(a) - movementRankSortIndex(b))
+  return cats.map((category) => {
+    const people = byCat.get(category)!
+    people.sort((a, b) => {
+      const sa = bounds(a).start!
+      const sb = bounds(b).start!
+      const ma = monthInYearForPeriod(sa, year)
+      const mb = monthInYearForPeriod(sb, year)
+      if (ma !== mb) return ma - mb
+      return sa.getTime() - sb.getTime() || a.name.localeCompare(b.name, 'ko')
+    })
+    const monthGroups: ShortWorkYearMonthGroup[] = []
+    for (const r of people) {
+      const { start, end } = bounds(r)
+      if (!start || !end) continue
+      const month = monthInYearForPeriod(start, year)
+      const entry: ShortWorkYearEntry = {
+        name: r.name,
+        start: fmt(start),
+        end: fmt(end),
+      }
+      const prev = monthGroups[monthGroups.length - 1]
+      if (prev && prev.month === month) prev.entries.push(entry)
+      else monthGroups.push({ month, entries: [entry] })
+    }
+    return { category, monthGroups }
+  })
+}
+
+/** 2-3: 연도별 임신기단축 */
+export function buildPregnancyShortByYear(
+  leave: LeaveRow[],
+  year: number,
+  personnel: PersonnelRow[],
+): ShortWorkYearBlock[] {
+  return buildShortWorkByYear(
+    leave,
+    year,
+    personnel,
+    hasValidPregnancyShort,
+    (r) => ({ start: r.pregnancyShortStart, end: r.pregnancyShortEnd }),
+  )
+}
+
+/** 2-4: 연도별 육아기단축 */
+export function buildChildcareShortByYear(
+  leave: LeaveRow[],
+  year: number,
+  personnel: PersonnelRow[],
+): ShortWorkYearBlock[] {
+  return buildShortWorkByYear(
+    leave,
+    year,
+    personnel,
+    hasValidChildcareShort,
+    (r) => ({ start: r.childcareShortStart, end: r.childcareShortEnd }),
+  )
+}
+
+/** @deprecated 기준일 스냅샷 — 2-3·2-4는 연도별 조회 사용 */
+export function buildPregnancyShortReport(
+  leave: LeaveRow[],
+  base: Date,
+  personnel: PersonnelRow[],
+): LeaveReportRow[] {
+  return buildPeriodReport(
+    leave,
+    base,
+    personnel,
+    hasValidPregnancyShort,
+    (r) => ({ start: r.pregnancyShortStart, end: r.pregnancyShortEnd }),
+    '임신기단축',
+  )
+}
+
+/** @deprecated 기준일 스냅샷 — 2-4는 연도별 조회 사용 */
+export function buildChildcareShortReport(
+  leave: LeaveRow[],
+  base: Date,
+  personnel: PersonnelRow[],
+): LeaveReportRow[] {
+  return buildPeriodReport(
+    leave,
+    base,
+    personnel,
+    hasValidChildcareShort,
+    (r) => ({ start: r.childcareShortStart, end: r.childcareShortEnd }),
+    '육아기단축',
+  )
+}
+
+export type PersonalLeaveHistoryRow = {
+  name: string
+  rankCategory: string
+  gender: string
+  kind: string
+  start: string
+  end: string
+}
+
+/** 2-5: 검색한 사람의 휴직·모성보호 구간을 시작일 순으로 나열 */
+export function buildPersonalLeaveHistory(
+  leave: LeaveRow[],
+  nameQuery: string,
+  personnel: PersonnelRow[],
+): PersonalLeaveHistoryRow[] {
+  const q = nameQuery.trim().replace(/\s+/g, '')
+  if (!q) return []
+  const matched = leave.filter((r) => r.name.replace(/\s+/g, '').includes(q))
+  const entries: { sortKey: number; row: PersonalLeaveHistoryRow }[] = []
+
+  const push = (
+    r: LeaveRow,
+    rankCategory: string,
+    kind: string,
+    start: Date | null,
+    end: Date | null,
+  ) => {
+    if (!start || !end) return
+    entries.push({
+      sortKey: startOfDay(start).getTime(),
+      row: {
+        name: r.name,
+        rankCategory,
+        gender: r.gender,
+        kind,
+        start: fmt(start),
+        end: fmt(end),
+      },
+    })
+  }
+
+  for (const r of matched) {
+    const rankCategory = rankCategoryForLeave(r, personnel)
+    push(r, rankCategory, '출산휴가', r.maternityStart, r.maternityEnd)
+    push(r, rankCategory, '임신기단축', r.pregnancyShortStart, r.pregnancyShortEnd)
+    push(r, rankCategory, '육아기단축', r.childcareShortStart, r.childcareShortEnd)
+    if (hasValidMainLeave(r)) {
+      const kind = String(r.leaveKind ?? '').trim() || '휴직'
+      push(r, rankCategory, kind, r.leaveStart, r.leaveEnd)
+    }
+  }
+
+  entries.sort((a, b) => a.sortKey - b.sortKey || a.row.kind.localeCompare(b.row.kind, 'ko'))
+  return entries.map((e) => e.row)
 }

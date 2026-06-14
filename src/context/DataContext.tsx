@@ -1,4 +1,3 @@
-import { startOfDay } from 'date-fns'
 import {
   createContext,
   useCallback,
@@ -8,8 +7,15 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { startOfDay } from 'date-fns'
 import type { ParsedWorkbook } from '../types/hr'
-import { getDataDirPath, isDesktopApp, listDataFolderExcels, readExcelFilePath } from '../lib/desktopBridge'
+import {
+  getDataDirPath,
+  isDesktopApp,
+  listDataFolderExcels,
+  readExcelFilePath,
+} from '../lib/desktopBridge'
+import { useHeadcountDailyExport } from '../lib/headcountDailyExport'
 import { parseWorkbookBuffer } from '../lib/parseExcel'
 
 const HRDATA_NAME = /^hrdata\.xlsx$/i
@@ -20,12 +26,14 @@ type Ctx = {
   data: ParsedWorkbook | null
   fileName: string | null
   filePath: string | null
-  /** 데스크톱 자동 로드 시 사용하는 data 폴더(개발: 프로젝트/data, 설치본: resources/data) */
+  /** 데스크톱 자동 로드 시 사용하는 data 폴더(개발: 프로젝트/data, 설치본: exe 옆 data) */
   dataDirectory: string | null
+  dataLoadedAt: Date | null
   dataLoading: boolean
   dataLoadError: string | null
   loadFile: (file: File) => Promise<void>
   loadFromPath: (fullPath: string) => Promise<void>
+  reloadDataFromFolder: () => Promise<void>
   clearData: () => void
 }
 
@@ -37,6 +45,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [fileName, setFileName] = useState<string | null>(null)
   const [filePath, setFilePath] = useState<string | null>(null)
   const [dataDirectory, setDataDirectory] = useState<string | null>(null)
+  const [dataLoadedAt, setDataLoadedAt] = useState<Date | null>(null)
   const [dataLoading, setDataLoading] = useState(() => isDesktopApp())
   const [dataLoadError, setDataLoadError] = useState<string | null>(null)
 
@@ -46,6 +55,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setData(parsed)
     setFileName(file.name)
     setFilePath(null)
+    setDataLoadedAt(new Date())
   }, [])
 
   const loadFromPath = useCallback(async (fullPath: string) => {
@@ -56,12 +66,39 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setFileName(base)
     setFilePath(fullPath)
     setDataLoadError(null)
+    setDataLoadedAt(new Date())
   }, [])
+
+  const reloadDataFromFolder = useCallback(async () => {
+    if (!isDesktopApp()) return
+    setDataLoading(true)
+    try {
+      const list = await listDataFolderExcels()
+      setDataLoadError(null)
+      if (!list) {
+        setDataLoadError('data 폴더 정보를 읽을 수 없습니다.')
+        return
+      }
+      setDataDirectory(list.dir)
+      const hit = list.entries.find((e) => HRDATA_NAME.test(e.name))
+      if (!hit) {
+        setDataLoadError('data 폴더에 HRdata.xlsx 파일이 없습니다.')
+        return
+      }
+      await loadFromPath(hit.fullPath)
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      setDataLoadError(`HRdata.xlsx 를 열 수 없습니다: ${msg}`)
+    } finally {
+      setDataLoading(false)
+    }
+  }, [loadFromPath])
 
   const clearData = useCallback(() => {
     setData(null)
     setFileName(null)
     setFilePath(null)
+    setDataLoadedAt(null)
   }, [])
 
   useEffect(() => {
@@ -84,6 +121,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           setDataLoading(false)
           return
         }
+        setDataDirectory(list.dir)
         const hit = list.entries.find((e) => HRDATA_NAME.test(e.name))
         if (!hit) {
           setDataLoadError('data 폴더에 HRdata.xlsx 파일이 없습니다.')
@@ -104,6 +142,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   }, [loadFromPath])
 
+  useHeadcountDailyExport(data, baseDate, reloadDataFromFolder)
+
   const value = useMemo(
     () => ({
       baseDate,
@@ -112,13 +152,28 @@ export function DataProvider({ children }: { children: ReactNode }) {
       fileName,
       filePath,
       dataDirectory,
+      dataLoadedAt,
       dataLoading,
       dataLoadError,
       loadFile,
       loadFromPath,
+      reloadDataFromFolder,
       clearData,
     }),
-    [baseDate, data, fileName, filePath, dataDirectory, dataLoading, dataLoadError, loadFile, loadFromPath, clearData],
+    [
+      baseDate,
+      data,
+      fileName,
+      filePath,
+      dataDirectory,
+      dataLoadedAt,
+      dataLoading,
+      dataLoadError,
+      loadFile,
+      loadFromPath,
+      reloadDataFromFolder,
+      clearData,
+    ],
   )
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>

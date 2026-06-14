@@ -68,10 +68,19 @@ declare global {
         amountLine: string
         bankAmount: string
         imagePaths: string[]
+        imageDataUrls?: string[]
         fileName: string
         simpleReceiptReason?: string
         merchantPhone?: string
       }) => Promise<{ ok: boolean; canceled?: boolean; filePath?: string }>
+      exportAttachProofPdf: (payload: {
+        receiptPath: string
+        receiptDataUrl?: string
+        extraPaths: string[]
+        amount?: number
+        bankAmount?: string
+        fileName: string
+      }) => Promise<{ ok: boolean; canceled?: boolean; filePath?: string; message?: string }>
       exportTripProofPdf: (payload: {
         dept: string
         rankLabel: string
@@ -175,6 +184,95 @@ declare global {
         configured?: boolean
         message?: string
         record?: Record<string, unknown>
+      }>
+      lawStatus: () => Promise<{
+        configured: boolean
+        source: string | null
+        responseType: string
+        sourceLabel: string
+      }>
+      lawSearch: (payload: {
+        query: string
+        page?: number
+        display?: number
+      }) => Promise<{
+        ok: boolean
+        configured?: boolean
+        message?: string
+        totalCnt?: number
+        laws?: {
+          name: string
+          lawId: string
+          mst: string
+          efYd: string
+          pubYd?: string
+          dept?: string
+          link?: string
+        }[]
+      }>
+      lawGetBody: (payload: {
+        mst?: string
+        lawId?: string
+        jo?: string
+      }) => Promise<{
+        ok: boolean
+        configured?: boolean
+        message?: string
+        format?: 'html' | 'json'
+        html?: string
+        data?: unknown
+      }>
+      lawRecentChanges: (payload?: { days?: number }) => Promise<{
+        ok: boolean
+        configured?: boolean
+        message?: string
+        items?: {
+          regDt: string
+          lawName: string
+          lawId: string
+          joNo: string
+          joTitle: string
+          reason: string
+          link?: string
+        }[]
+        fromRegDt?: string
+        toRegDt?: string
+      }>
+      lawResolveMajor: () => Promise<{
+        ok: boolean
+        configured?: boolean
+        message?: string
+        laws?: {
+          name: string
+          lawId: string
+          mst: string
+          efYd: string
+          error?: string
+        }[]
+      }>
+      lawOpenExternal: (url: string) => Promise<void>
+      gistRegStatus: () => Promise<{
+        folder: string
+        fileCount: number
+        supportedCount: number
+        files: string[]
+      }>
+      gistRegOpenFolder: () => Promise<{ ok: boolean; folder: string }>
+      lawRegCompare: (payload: { keyword: string }) => Promise<{
+        ok: boolean
+        configured?: boolean
+        message?: string
+        rows?: {
+          topic: string
+          gistRegulation: string
+          law: string
+          difference: string
+          compliance: string
+        }[]
+        summary?: string
+        folder?: string
+        gistHits?: { fileName: string; snippet: string }[]
+        lawSources?: string[]
       }>
     }
   }

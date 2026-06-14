@@ -6,6 +6,7 @@ import type { PublicHeadcountSnapshotV1 } from '../../src/lib/headcountPublicSna
 import { RANK_BAND_ORDER } from '../../src/lib/jobClassification'
 import { HC, HcTableWrap } from '../../src/components/headcountWebUi'
 import { ExpenseProofPanel } from '../../src/components/ExpenseProofPanel'
+import { AttachmentProofPanel } from '../../src/components/AttachmentProofPanel'
 import { TripProofPanel } from '../../src/components/TripProofPanel'
 import { BottomNav } from './components/BottomNav'
 import { ChartPanel } from './components/ChartPanel'
@@ -17,9 +18,11 @@ import {
   HEADCOUNT_NAV,
   isProofNav,
   navTitle,
+  normalizeProofNav,
   readNavFromHash,
   writeNavHash,
   type HeadcountNav,
+  type ProofSubNavKey,
 } from './nav'
 
 function isSnapshot(v: unknown): v is PublicHeadcountSnapshotV1 {
@@ -103,8 +106,8 @@ export function App() {
   }
 
   return (
-    <div className="min-h-dvh w-full bg-[#F2F2F2] pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-8">
-      <header className="sticky top-0 z-30 border-b border-[#D8D8D8] bg-[#F2F2F2]/95 backdrop-blur-md">
+    <div className="min-h-dvh w-full bg-white pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-8">
+      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
           <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#006B00]">HRM</p>
@@ -113,7 +116,7 @@ export function App() {
             </h1>
           </div>
           {!isProofNav(active) ? (
-            <time className="shrink-0 rounded-lg bg-[#E0E0E0] px-3 py-1 font-mono text-[11px] font-semibold text-[#444]">
+            <time className="shrink-0 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1 font-mono text-[11px] font-semibold text-[#444]">
               {snap.baseDate}
             </time>
           ) : null}
@@ -122,7 +125,7 @@ export function App() {
 
       <div className="mx-auto flex w-full max-w-6xl gap-6 px-3 pt-4 sm:px-4 lg:px-6">
         <nav className="hidden w-44 shrink-0 lg:block">
-          <div className="sticky top-[4rem] space-y-1.5 rounded-[1.25rem] bg-[#E0E0E0] p-2">
+          <div className="sticky top-[4rem] space-y-1.5 rounded-[1.25rem] border border-slate-200 bg-white p-2 shadow-sm">
             {HEADCOUNT_NAV.map((it) => {
               const on = bottomNavKey(active) === it.key
               return (
@@ -132,7 +135,7 @@ export function App() {
                   onClick={() => selectNav(it.key === 'proof' ? 'doc-6-1' : it.key)}
                   className={[
                     'flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-colors',
-                    on ? 'bg-[#006B00] text-white shadow-sm' : 'text-[#444] hover:bg-[#F0F0F0]',
+                    on ? 'bg-[#006B00] text-white shadow-sm' : 'text-[#444] hover:bg-slate-50',
                   ].join(' ')}
                 >
                   <span className="font-mono text-[11px] font-bold opacity-80">{it.code}</span>
@@ -152,7 +155,7 @@ export function App() {
           {active === 'home' ? (
             <PublicOverviewDashboard snap={snap} />
           ) : isProofNav(active) ? (
-            renderProofPanel(active === 'doc-6-2' ? 'doc-6-2' : 'doc-6-1', selectNav)
+            renderProofPanel(normalizeProofNav(active), selectNav)
           ) : active === 'p-1-1' ||
               active === 'p-1-2' ||
               active === 'p-1-3' ||
@@ -167,20 +170,23 @@ export function App() {
   )
 }
 
-function renderProofPanel(
-  active: 'doc-6-1' | 'doc-6-2',
-  selectNav: (key: HeadcountNav) => void,
-): ReactNode {
+function renderProofPanel(active: ProofSubNavKey, selectNav: (key: HeadcountNav) => void): ReactNode {
   return (
     <div>
       <ProofSubNav active={active} onSelect={selectNav} />
-      {active === 'doc-6-1' ? <ExpenseProofPanel webMode /> : <TripProofPanel webMode />}
+      {active === 'doc-6-1' ? (
+        <ExpenseProofPanel webMode />
+      ) : active === 'doc-6-2' ? (
+        <AttachmentProofPanel webMode />
+      ) : (
+        <TripProofPanel webMode />
+      )}
     </div>
   )
 }
 
 function renderPanel(
-  active: Exclude<HeadcountNav, 'home' | 'proof' | 'doc-6-1' | 'doc-6-2'>,
+  active: Exclude<HeadcountNav, 'home' | 'proof' | 'doc-6-1' | 'doc-6-2' | 'doc-6-3'>,
   snap: PublicHeadcountSnapshotV1,
   yearForMonth: number,
   setYearForMonth: (y: number) => void,
@@ -297,7 +303,7 @@ function renderPanel(
   if (active === 'p-1-4') {
     return (
       <HeadcountCard code="1-4" title="월초·월말">
-        <label className="flex items-center justify-center gap-2 rounded-xl bg-[#F0F0F0] py-3 text-sm font-medium text-[#444]">
+        <label className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 py-3 text-sm font-medium text-[#444]">
           연도
           <select
             className="rounded-lg border-0 bg-white px-3 py-1.5 text-sm font-semibold text-[#1A1A1A] shadow-sm"

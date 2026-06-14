@@ -75,6 +75,11 @@ export function fmt(d: Date | null): string {
   return format(d, 'yyyy-MM-dd', { locale: ko })
 }
 
+export function fmtDots(d: Date | null): string {
+  if (!d) return '—'
+  return format(d, 'yyyy.MM.dd.', { locale: ko })
+}
+
 export function fmtKo(d: Date | null): string {
   if (!d) return '—'
   return format(d, 'yyyy년 M월 d일', { locale: ko })

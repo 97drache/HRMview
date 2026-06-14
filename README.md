@@ -17,10 +17,9 @@ Electron + Vite + React. 인원·휴직·연수 엑셀을 불러와 로컬에서
 
 ## 폴더
 
-- `data/` — 엑셀 보관용(저장소에는 내용 미포함).
+- `data/` — 엑셀 보관용(저장소에는 내용 미포함). **설치본**은 `HRM-app/data/HRdata.xlsx` 를 수정하세요.
 - `HRM-app/` — 패킹 결과물(`npm run pack`으로 재생성).
 
-## Vercel 인원현황 — 수동 갱신
+## Vercel 인원현황 — 갱신
 
-엑셀 반영 후 `npm run export:headcount-public` → `headcount-snapshot.json` 커밋·푸시 → Vercel 재배포.  
-자세한 절차: [docs/daily-vercel-update.md](docs/daily-vercel-update.md)
+데스크톱 앱이 **하루 1회** 모바일용 스냅샷을 자동 저장합니다. Git push·Vercel 배포 자동화는 [docs/daily-vercel-update.md](docs/daily-vercel-update.md) 참고.

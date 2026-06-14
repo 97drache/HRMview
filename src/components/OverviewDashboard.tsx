@@ -245,6 +245,16 @@ export function OverviewDashboard({
           ))}
         </div>
       </div>
+
+      <div className="text-right">
+        <button
+          type="button"
+          onClick={() => onNavigate('sitemap')}
+          className="text-[10px] text-slate-400 underline-offset-2 hover:text-slate-600 hover:underline"
+        >
+          사이트맵
+        </button>
+      </div>
     </div>
   )
 }

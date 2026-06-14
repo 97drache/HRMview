@@ -149,6 +149,8 @@ export async function exportExpenseProofPdf(payload: {
   amountLine: string
   bankAmount: string
   imagePaths: string[]
+  /** 6-1 미리보기와 동일한 Gemini 크롭 이미지(data URL) — PDF에 그대로 사용 */
+  imageDataUrls?: string[]
   fileName: string
   simpleReceiptReason?: string
   merchantPhone?: string
@@ -158,6 +160,21 @@ export async function exportExpenseProofPdf(payload: {
     throw new Error('지출증빙 PDF 저장은 데스크톱 앱에서만 사용할 수 있습니다.')
   }
   return api.exportExpenseProofPdf(payload)
+}
+
+export async function exportAttachProofPdf(payload: {
+  receiptPath: string
+  receiptDataUrl?: string
+  extraPaths: string[]
+  amount?: number
+  bankAmount?: string
+  fileName: string
+}): Promise<{ ok: boolean; canceled?: boolean; filePath?: string; message?: string }> {
+  const api = window.hrmDesktop
+  if (!api?.exportAttachProofPdf) {
+    throw new Error('증빙서 붙임란 PDF는 데스크톱 앱에서만 사용할 수 있습니다.')
+  }
+  return api.exportAttachProofPdf(payload)
 }
 
 export async function readImageAsDataUrl(filePath: string): Promise<string> {
@@ -483,6 +500,126 @@ export async function exportCareerPdfToFile(
     canceled?: boolean
     filePath?: string
   }>
+}
+
+export async function lawStatus(): Promise<{
+  configured: boolean
+  source: string | null
+  responseType: string
+  sourceLabel: string
+}> {
+  const api = window.hrmDesktop
+  if (!api?.lawStatus) {
+    return { configured: false, source: null, responseType: 'JSON', sourceLabel: '국가법령정보센터' }
+  }
+  return api.lawStatus() as Promise<{
+    configured: boolean
+    source: string | null
+    responseType: string
+    sourceLabel: string
+  }>
+}
+
+export async function lawSearch(payload: {
+  query: string
+  page?: number
+  display?: number
+}): Promise<{
+  ok: boolean
+  configured?: boolean
+  message?: string
+  totalCnt?: number
+  laws?: import('./hrLawConfig').LawListItem[]
+}> {
+  const api = window.hrmDesktop
+  if (!api?.lawSearch) throw new Error('법령 검색은 데스크톱 앱에서만 사용할 수 있습니다.')
+  return api.lawSearch(payload)
+}
+
+export async function lawGetBody(payload: {
+  mst?: string
+  lawId?: string
+  jo?: string
+}): Promise<{
+  ok: boolean
+  configured?: boolean
+  message?: string
+  format?: 'html' | 'json'
+  html?: string
+  data?: unknown
+}> {
+  const api = window.hrmDesktop
+  if (!api?.lawGetBody) throw new Error('법령 본문은 데스크톱 앱에서만 조회할 수 있습니다.')
+  return api.lawGetBody(payload)
+}
+
+export async function lawRecentChanges(payload?: {
+  days?: number
+}): Promise<{
+  ok: boolean
+  configured?: boolean
+  message?: string
+  items?: import('./hrLawConfig').LawJoChangeItem[]
+  fromRegDt?: string
+  toRegDt?: string
+}> {
+  const api = window.hrmDesktop
+  if (!api?.lawRecentChanges) throw new Error('법령 변경 조회는 데스크톱 앱에서만 사용할 수 있습니다.')
+  return api.lawRecentChanges(payload)
+}
+
+export async function lawResolveMajor(): Promise<{
+  ok: boolean
+  configured?: boolean
+  message?: string
+  laws?: import('./hrLawConfig').LawListItem[]
+}> {
+  const api = window.hrmDesktop
+  if (!api?.lawResolveMajor) throw new Error('주요 법령 연동은 데스크톱 앱에서만 사용할 수 있습니다.')
+  return api.lawResolveMajor()
+}
+
+export async function lawOpenExternal(url: string): Promise<void> {
+  const api = window.hrmDesktop
+  if (!api?.lawOpenExternal) {
+    window.open(url, '_blank', 'noopener,noreferrer')
+    return
+  }
+  await api.lawOpenExternal(url)
+}
+
+export async function gistRegStatus(): Promise<{
+  folder: string
+  fileCount: number
+  supportedCount: number
+  files: string[]
+}> {
+  const api = window.hrmDesktop
+  if (!api?.gistRegStatus) {
+    return { folder: '', fileCount: 0, supportedCount: 0, files: [] }
+  }
+  return api.gistRegStatus()
+}
+
+export async function gistRegOpenFolder(): Promise<{ ok: boolean; folder: string }> {
+  const api = window.hrmDesktop
+  if (!api?.gistRegOpenFolder) throw new Error('규정 폴더는 데스크톱 앱에서만 열 수 있습니다.')
+  return api.gistRegOpenFolder()
+}
+
+export async function lawRegCompare(payload: { keyword: string }): Promise<{
+  ok: boolean
+  configured?: boolean
+  message?: string
+  rows?: import('./hrLawConfig').RegCompareRow[]
+  summary?: string
+  folder?: string
+  gistHits?: { fileName: string; snippet: string }[]
+  lawSources?: string[]
+}> {
+  const api = window.hrmDesktop
+  if (!api?.lawRegCompare) throw new Error('규정·법령 비교는 데스크톱 앱에서만 사용할 수 있습니다.')
+  return api.lawRegCompare(payload)
 }
 
 /** 브라우저·일반 환경: HTML 파일로 바로 저장 (팝업 불필요) */

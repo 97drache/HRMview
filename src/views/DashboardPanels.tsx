@@ -1,8 +1,13 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { OverviewDashboard } from '../components/OverviewDashboard'
+import { SitemapPanel } from '../components/SitemapPanel'
 import { CareerCertificatePanel } from '../components/CareerCertificatePanel'
+import { LeaveCertificatePanel } from '../components/LeaveCertificatePanel'
+import { RetirementCertificatePanel } from '../components/RetirementCertificatePanel'
 import { TripProofPanel } from '../components/TripProofPanel'
 import { ExpenseProofPanel } from '../components/ExpenseProofPanel'
+import { AttachmentProofPanel } from '../components/AttachmentProofPanel'
+import { HrLawPanel } from '../components/HrLawPanel'
 import { CopyableStackedBar, CopyableYearRankChart } from '../components/CopyableChart'
 import type { NavKey } from '../navConfig'
 import { LeaveNotificationPanel } from '../components/LeaveNotificationPanel'
@@ -13,20 +18,64 @@ import { fmt } from '../lib/dates'
 import { downloadExcelSheets } from '../lib/exportExcel'
 import { displayMovementRankCategory, RANK_BAND_ORDER } from '../lib/jobClassification'
 import {
+  buildChildcareShortByYear,
   buildLeaveReport,
   buildMaternityReport,
+  buildPersonalLeaveHistory,
+  buildPregnancyShortByYear,
   headcountByGenderEmployment,
   headcountByJobGenderOrdered,
-  leaveRowsForName,
   meritTrainingOn,
   monthBoundaryHeadcounts,
   newHiresByMovementRank,
-  rankCategoryForLeave,
   resignationsByMovementRank,
   upcomingRetirements,
   wagePeakByYear,
   yearlyHeadcountByRankBandDesc,
+  type ShortWorkYearBlock,
 } from '../lib/hrEngine'
+
+function formatShortWorkEntries(entries: { name: string; start: string; end: string }[]): string {
+  return entries.map((e) => `${e.name}(${e.start}~${e.end})`).join(', ')
+}
+
+function ShortWorkYearSections({ blocks, emptyMsg }: { blocks: ShortWorkYearBlock[]; emptyMsg: string }) {
+  if (blocks.length === 0) {
+    return (
+      <div className="rounded-xl border border-stone-200/80 bg-stone-50/70 p-4 text-sm text-stone-600">
+        {emptyMsg}
+      </div>
+    )
+  }
+  return (
+    <div className="space-y-5">
+      {blocks.map(({ category, monthGroups }) => (
+        <div
+          key={category}
+          className="overflow-hidden rounded-2xl border border-stone-200/90 bg-white shadow-sm ring-1 ring-stone-900/5"
+        >
+          <div className="border-b border-teal-900/10 bg-gradient-to-r from-teal-900 to-teal-800 px-4 py-3">
+            <h3 className="text-[15px] font-semibold tracking-tight text-white">{category}</h3>
+          </div>
+          <ul className="divide-y divide-stone-100">
+            {monthGroups.map((g) => (
+              <li key={g.month} className="flex gap-3 px-4 py-3 sm:gap-5">
+                <div className="flex w-12 shrink-0 justify-end sm:w-14">
+                  <span className="inline-flex h-7 min-w-[2.75rem] items-center justify-center rounded-lg bg-teal-50 px-2 text-xs font-bold tabular-nums text-teal-900 ring-1 ring-teal-900/10">
+                    {g.month}월
+                  </span>
+                </div>
+                <p className="min-w-0 flex-1 pt-0.5 text-sm leading-relaxed text-stone-800">
+                  {formatShortWorkEntries(g.entries)}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  )
+}
 
 export function DashboardPanels({
   active,
@@ -38,6 +87,7 @@ export function DashboardPanels({
   const { data, baseDate } = useData()
   const [yearForMonth, setYearForMonth] = useState(() => baseDate.getFullYear())
   const [yearForMovement, setYearForMovement] = useState(() => baseDate.getFullYear())
+  const [yearForShortWork, setYearForShortWork] = useState(() => baseDate.getFullYear())
   const [searchName, setSearchName] = useState('')
 
   const yearRange = useMemo(() => {
@@ -54,12 +104,24 @@ export function DashboardPanels({
   }, [data, baseDate])
 
   if (!data) {
-    if (active === 'c-5-1') {
+    if (active === 'c-5-1' || active === 'c-5-2' || active === 'c-5-3') {
       return (
         <div className="mx-auto flex max-w-6xl flex-col gap-5 pb-10">
-          <Card code="5-1" title="경력증명서">
-            <CareerCertificatePanel />
-          </Card>
+          {active === 'c-5-1' ? (
+            <Card code="5-1" title="경력증명서">
+              <CareerCertificatePanel />
+            </Card>
+          ) : null}
+          {active === 'c-5-2' ? (
+            <Card code="5-2" title="휴직증명서">
+              <LeaveCertificatePanel />
+            </Card>
+          ) : null}
+          {active === 'c-5-3' ? (
+            <Card code="5-3" title="퇴직(예정)증명서">
+              <RetirementCertificatePanel />
+            </Card>
+          ) : null}
         </div>
       )
     }
@@ -72,21 +134,37 @@ export function DashboardPanels({
     }
     if (active === 'doc-6-2') {
       return (
-        <div className="mx-auto flex max-w-6xl flex-col gap-5 pb-10">
-          <TripProofPanel />
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 pb-10">
+          <AttachmentProofPanel />
         </div>
       )
     }
     if (active === 'doc-6-3') {
       return (
         <div className="mx-auto flex max-w-6xl flex-col gap-5 pb-10">
-          <Card code="6-3" title="명함관리">
-            <p className="text-sm text-slate-600">준비 중</p>
-          </Card>
+          <TripProofPanel />
+        </div>
+      )
+    }
+    if (active === 'law-7-1' || active === 'law-7-2' || active === 'law-7-3' || active === 'law-7-4') {
+      return <HrLawPanel active={active} />
+    }
+    if (active === 'sitemap') {
+      return (
+        <div className="mx-auto flex w-full flex-col gap-5 pb-10">
+          <SitemapPanel onNavigate={onNavigate} />
         </div>
       )
     }
     return null
+  }
+
+  if (active === 'sitemap') {
+    return (
+      <div className="mx-auto flex w-full flex-col gap-5 pb-10">
+        <SitemapPanel onNavigate={onNavigate} />
+      </div>
+    )
   }
 
   return (
@@ -510,29 +588,117 @@ export function DashboardPanels({
       {active === 'l-2-3' ? (
         <Card
           code="2-3"
-          title="개인 이력 조회"
-          desc="이름을 포함해 검색합니다. 휴직현황 시트의 해당 행을 아래 표에 바로 표시합니다."
+          title="연도별 임신기단축"
+          desc="선택한 연도에 임신기단축 기간이 하루라도 포함된 대상을 직급·시작월별로 표시합니다. (3-1 입퇴사 메뉴와 같은 연도별 방식)"
           actions={
             <button
               type="button"
               className="rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-800 shadow-sm hover:bg-stone-50"
               onClick={() => {
-                const found = leaveRowsForName(data.leave, searchName)
-                void downloadExcelSheets(`HRM-2-3-검색-${fmt(baseDate).replace(/-/g, '')}.xlsx`, [
+                const blocks = buildPregnancyShortByYear(data.leave, yearForShortWork, data.personnel)
+                const rows: (string | number)[][] = [
+                  ['연도별 임신기단축', yearForShortWork + '년'],
+                  [],
+                  ['직급', '월', '성명(기간)'],
+                ]
+                for (const { category, monthGroups } of blocks) {
+                  for (const g of monthGroups) {
+                    rows.push([category, `${g.month}월`, formatShortWorkEntries(g.entries)])
+                  }
+                }
+                void downloadExcelSheets(`HRM-2-3-임신기단축-${yearForShortWork}.xlsx`, [{ name: '2-3', rows }])
+              }}
+            >
+              엑셀 저장
+            </button>
+          }
+        >
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <label className="text-sm font-medium text-stone-700">연도</label>
+            <input
+              type="number"
+              className="w-28 rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm shadow-sm"
+              value={yearForShortWork}
+              onChange={(e) => setYearForShortWork(Number(e.target.value))}
+            />
+          </div>
+          <ShortWorkYearSections
+            blocks={buildPregnancyShortByYear(data.leave, yearForShortWork, data.personnel)}
+            emptyMsg={`${yearForShortWork}년 임신기단축 대상이 없습니다. (임신기단축시작일·종료일 열을 확인해 주세요.)`}
+          />
+        </Card>
+      ) : null}
+
+      {active === 'l-2-4' ? (
+        <Card
+          code="2-4"
+          title="연도별 육아기단축"
+          desc="선택한 연도에 육아기단축 기간이 하루라도 포함된 대상을 직급·시작월별로 표시합니다. (3-1 입퇴사 메뉴와 같은 연도별 방식)"
+          actions={
+            <button
+              type="button"
+              className="rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-800 shadow-sm hover:bg-stone-50"
+              onClick={() => {
+                const blocks = buildChildcareShortByYear(data.leave, yearForShortWork, data.personnel)
+                const rows: (string | number)[][] = [
+                  ['연도별 육아기단축', yearForShortWork + '년'],
+                  [],
+                  ['직급', '월', '성명(기간)'],
+                ]
+                for (const { category, monthGroups } of blocks) {
+                  for (const g of monthGroups) {
+                    rows.push([category, `${g.month}월`, formatShortWorkEntries(g.entries)])
+                  }
+                }
+                void downloadExcelSheets(`HRM-2-4-육아기단축-${yearForShortWork}.xlsx`, [{ name: '2-4', rows }])
+              }}
+            >
+              엑셀 저장
+            </button>
+          }
+        >
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <label className="text-sm font-medium text-stone-700">연도</label>
+            <input
+              type="number"
+              className="w-28 rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm shadow-sm"
+              value={yearForShortWork}
+              onChange={(e) => setYearForShortWork(Number(e.target.value))}
+            />
+          </div>
+          <ShortWorkYearSections
+            blocks={buildChildcareShortByYear(data.leave, yearForShortWork, data.personnel)}
+            emptyMsg={`${yearForShortWork}년 육아기단축 대상이 없습니다. (육아기단축시작일·종료일 열을 확인해 주세요.)`}
+          />
+        </Card>
+      ) : null}
+
+      {active === 'l-2-5' ? (
+        <Card
+          code="2-5"
+          title="개인 이력 조회"
+          desc="이름을 포함해 검색합니다. 출산휴가·임신기·육아기 단축·휴직(휴직종류) 구간을 시작일 순으로 표시합니다."
+          actions={
+            <button
+              type="button"
+              className="rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-800 shadow-sm hover:bg-stone-50"
+              onClick={() => {
+                const found = buildPersonalLeaveHistory(data.leave, searchName, data.personnel)
+                void downloadExcelSheets(`HRM-2-5-이력-${fmt(baseDate).replace(/-/g, '')}.xlsx`, [
                   {
-                    name: '2-3',
+                    name: '2-5',
                     rows: [
-                      ['개인 이력 조회: ' + (searchName || '(전체)')],
+                      ['개인 이력 조회: ' + (searchName || '(미입력)')],
                       [],
-                      ['연번', '성명', '직급', '성별', '휴직종류', '휴직 기간', '출산휴가'],
+                      ['연번', '성명', '직급', '성별', '종류', '시작일', '종료일'],
                       ...found.map((r, i) => [
                         i + 1,
                         r.name,
-                        rankCategoryForLeave(r, data.personnel),
+                        r.rankCategory,
                         r.gender,
-                        r.leaveKind,
-                        `${fmt(r.leaveStart)} ~ ${fmt(r.leaveEnd)}`,
-                        `${fmt(r.maternityStart)} ~ ${fmt(r.maternityEnd)}`,
+                        r.kind,
+                        r.start,
+                        r.end,
                       ]),
                     ],
                   },
@@ -560,18 +726,18 @@ export function DashboardPanels({
               { key: 'name', label: '성명' },
               { key: 'rank', label: '직급' },
               { key: 'gender', label: '성별' },
-              { key: 'kind', label: '휴직종류' },
-              { key: 'leave', label: '휴직 기간' },
-              { key: 'mat', label: '출산휴가' },
+              { key: 'kind', label: '종류' },
+              { key: 'start', label: '시작일' },
+              { key: 'end', label: '종료일' },
             ]}
-            rows={leaveRowsForName(data.leave, searchName).map((r, i) => ({
+            rows={buildPersonalLeaveHistory(data.leave, searchName, data.personnel).map((r, i) => ({
               no: i + 1,
               name: r.name,
-              rank: rankCategoryForLeave(r, data.personnel),
+              rank: r.rankCategory,
               gender: r.gender,
-              kind: r.leaveKind,
-              leave: `${fmt(r.leaveStart)} ~ ${fmt(r.leaveEnd)}`,
-              mat: `${fmt(r.maternityStart)} ~ ${fmt(r.maternityEnd)}`,
+              kind: r.kind,
+              start: r.start,
+              end: r.end,
             }))}
           />
         </Card>
@@ -869,13 +1035,23 @@ export function DashboardPanels({
           <CareerCertificatePanel />
         </Card>
       ) : null}
+      {active === 'c-5-2' ? (
+        <Card code="5-2" title="휴직증명서">
+          <LeaveCertificatePanel />
+        </Card>
+      ) : null}
+      {active === 'c-5-3' ? (
+        <Card code="5-3" title="퇴직(예정)증명서">
+          <RetirementCertificatePanel />
+        </Card>
+      ) : null}
 
       {active === 'doc-6-1' ? <ExpenseProofPanel /> : null}
-      {active === 'doc-6-2' ? <TripProofPanel /> : null}
-      {active === 'doc-6-3' ? (
-        <Card code="6-3" title="명함관리" desc="준비 중입니다.">
-          <p className="text-sm text-slate-600">곧 연결 예정입니다.</p>
-        </Card>
+      {active === 'doc-6-2' ? <AttachmentProofPanel /> : null}
+      {active === 'doc-6-3' ? <TripProofPanel /> : null}
+
+      {active === 'law-7-1' || active === 'law-7-2' || active === 'law-7-3' || active === 'law-7-4' ? (
+        <HrLawPanel active={active} />
       ) : null}
     </div>
   )
