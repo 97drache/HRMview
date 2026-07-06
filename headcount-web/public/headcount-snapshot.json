@@ -1,20 +1,20 @@
 {
   "version": 1,
-  "generatedAt": "2026-06-14T02:05:32.036Z",
-  "baseDate": "2026-06-14",
+  "generatedAt": "2026-07-06T02:47:01.474Z",
+  "baseDate": "2026-07-06",
   "sheetNotes": [],
   "empty": false,
   "overviewKpi": {
     "statYear": 2026,
-    "male": 86,
-    "female": 140,
-    "regular": 106,
-    "mugi": 120,
-    "meritTraining": 2,
-    "onLeave": 21,
-    "leaveScheduled": 4,
-    "onMaternity": 0,
-    "maternityScheduled": 3,
+    "male": 88,
+    "female": 144,
+    "regular": 109,
+    "mugi": 123,
+    "meritTraining": 1,
+    "onLeave": 19,
+    "leaveScheduled": 7,
+    "onMaternity": 2,
+    "maternityScheduled": 2,
     "hiresYtd": 8,
     "resignsYtd": 4,
     "wagePeakYtd": 6
@@ -22,21 +22,21 @@
   "jobGender": [
     {
       "job": "행정직",
-      "male": 39,
-      "female": 28,
-      "total": 67
+      "male": 41,
+      "female": 29,
+      "total": 70
     },
     {
       "job": "기술직",
-      "male": 22,
+      "male": 23,
       "female": 7,
-      "total": 29
+      "total": 30
     },
     {
       "job": "기능직",
-      "male": 5,
+      "male": 4,
       "female": 5,
-      "total": 10
+      "total": 9
     },
     {
       "job": "관리직",
@@ -47,28 +47,28 @@
     {
       "job": "일반직",
       "male": 13,
-      "female": 80,
-      "total": 93
+      "female": 83,
+      "total": 96
     }
   ],
   "genderEmployment": [
     {
       "label": "남",
-      "regular": 66,
+      "regular": 68,
       "mugi": 20,
-      "total": 86
+      "total": 88
     },
     {
       "label": "여",
-      "regular": 40,
-      "mugi": 100,
-      "total": 140
+      "regular": 41,
+      "mugi": 103,
+      "total": 144
     },
     {
       "label": "계",
-      "regular": 106,
-      "mugi": 120,
-      "total": 226
+      "regular": 109,
+      "mugi": 123,
+      "total": 232
     }
   ],
   "yearRange": {
@@ -1941,5 +1941,5 @@
       }
     ]
   },
-  "meritTrainingCount": 2
+  "meritTrainingCount": 1
 }
