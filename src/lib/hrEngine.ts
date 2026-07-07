@@ -496,13 +496,69 @@ export function hasValidChildcareShort(row: LeaveRow): boolean {
 }
 
 /** 본 휴직 사유가 육아휴직(류)인지 — 휴직종류·사유 문자열 기준 */
-function isChildcareLeaveReason(row: LeaveRow, reason: string): boolean {
+export function isChildcareLeaveReason(row: LeaveRow, reason: string): boolean {
   const k = String(row.leaveKind ?? '').replace(/\s+/g, '')
   const r = reason.replace(/\s+/g, '')
   if (/육아휴직|육아기휴직|육아휴가/.test(k)) return true
   if (/육아휴직|육아기휴직|육아휴가/.test(r)) return true
   if (/휴직\([^)]*육아/.test(reason)) return true
   return false
+}
+
+/** 본 휴직(휴직종류·기간 필수)이 육아휴직인 행 */
+export function isChildcareMainLeave(row: LeaveRow): boolean {
+  if (!hasValidMainLeave(row)) return false
+  const kind = String(row.leaveKind ?? '').trim()
+  return isChildcareLeaveReason(row, `휴직(${kind})`)
+}
+
+function leavePersonKey(row: LeaveRow): string {
+  const id = String(row.empId ?? '').trim()
+  return id || row.name.trim()
+}
+
+export type YearCountPoint = { year: number; count: number }
+
+/** 최근 N개 연도 구간 (기준 연도 포함) */
+export function recentYearRange(endYear: number, span = 10): { from: number; to: number } {
+  return { from: endYear - (span - 1), to: endYear }
+}
+
+/** 연도별 육아휴직 개시 인원 — 해당 연도에 휴직시작한 사람(중복 제외) */
+export function childcareLeaveStartsByYear(
+  leave: LeaveRow[],
+  fromYear: number,
+  toYear: number,
+): YearCountPoint[] {
+  const rows = leave.filter(isChildcareMainLeave)
+  const out: YearCountPoint[] = []
+  for (let year = fromYear; year <= toYear; year++) {
+    const people = new Set<string>()
+    for (const r of rows) {
+      if (!r.leaveStart) continue
+      if (r.leaveStart.getFullYear() === year) people.add(leavePersonKey(r))
+    }
+    out.push({ year, count: people.size })
+  }
+  return out
+}
+
+/** 연도별 육아휴직 해당 인원 — 해당 연도에 1일이라도 육아휴직인 사람(중복 제외) */
+export function childcareLeavePresentByYear(
+  leave: LeaveRow[],
+  fromYear: number,
+  toYear: number,
+): YearCountPoint[] {
+  const rows = leave.filter(isChildcareMainLeave)
+  const out: YearCountPoint[] = []
+  for (let year = fromYear; year <= toYear; year++) {
+    const people = new Set<string>()
+    for (const r of rows) {
+      if (periodOverlapsYear(r.leaveStart, r.leaveEnd, year)) people.add(leavePersonKey(r))
+    }
+    out.push({ year, count: people.size })
+  }
+  return out
 }
 
 export type LeaveReportRow = {

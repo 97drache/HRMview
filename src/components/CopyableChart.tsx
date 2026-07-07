@@ -101,6 +101,7 @@ export function CopyableSimpleBar({
   yKey,
   yName = '인원',
   height = 300,
+  barColor = STACK_M,
 }: {
   title?: string
   data: Record<string, string | number>[]
@@ -108,6 +109,7 @@ export function CopyableSimpleBar({
   yKey: string
   yName?: string
   height?: number
+  barColor?: string
 }) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const [hint, setHint] = useState('')
@@ -160,7 +162,7 @@ export function CopyableSimpleBar({
                 fontSize: 12,
               }}
             />
-            <Bar dataKey={yKey} name={yName} fill={STACK_M} radius={[6, 6, 0, 0]} />
+            <Bar dataKey={yKey} name={yName} fill={barColor} radius={[6, 6, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>

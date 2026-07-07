@@ -1,5 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { OverviewDashboard } from '../components/OverviewDashboard'
+import { MaternityOverviewDashboard } from '../components/MaternityOverviewDashboard'
 import { SitemapPanel } from '../components/SitemapPanel'
 import { CareerCertificatePanel } from '../components/CareerCertificatePanel'
 import { LeaveCertificatePanel } from '../components/LeaveCertificatePanel'
@@ -171,6 +172,15 @@ export function DashboardPanels({
     <div className="mx-auto flex max-w-6xl flex-col gap-5 pb-10">
       {active === 'home' ? (
         <OverviewDashboard
+          personnel={data.personnel}
+          leave={data.leave}
+          baseDate={baseDate}
+          onNavigate={onNavigate}
+        />
+      ) : null}
+
+      {active === 'l-2-0' ? (
+        <MaternityOverviewDashboard
           personnel={data.personnel}
           leave={data.leave}
           baseDate={baseDate}

@@ -6,6 +6,7 @@ export type NavKey =
   | 'p-1-3'
   | 'p-1-4'
   | 'p-1-5'
+  | 'l-2-0'
   | 'l-2-1'
   | 'l-2-2'
   | 'l-2-3'
@@ -62,6 +63,7 @@ export const NAV_GROUPS: NavGroupDef[] = [
     shortTitle: '모성보호',
     subtitle: '휴직 · 출산 · 연도별 단축 · 이력',
     items: [
+      { key: 'l-2-0', code: '2-0', label: '한눈에 보기' },
       { key: 'l-2-1', code: '2-1', label: '휴직자 현황' },
       { key: 'l-2-2', code: '2-2', label: '출산휴가 현황' },
       { key: 'l-2-3', code: '2-3', label: '연도별 임신기단축' },
