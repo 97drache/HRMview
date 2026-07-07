@@ -118,6 +118,11 @@ export function CopyableSimpleBar({
 }) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const [hint, setHint] = useState('')
+  const handleChartClick = (state?: unknown) => {
+    const row = (state as { activePayload?: { payload: Record<string, string | number> }[] } | undefined)
+      ?.activePayload?.[0]?.payload
+    if (row && onBarClick) onBarClick(row)
+  }
 
   async function copyImage() {
     const el = wrapRef.current
@@ -156,7 +161,7 @@ export function CopyableSimpleBar({
       <div ref={wrapRef} className="rounded-xl border border-sky-100/90 bg-gradient-to-b from-sky-50/90 to-cyan-50/40 p-4 shadow-inner">
         {title ? <div className="mb-2 text-center text-sm font-semibold text-slate-800">{title}</div> : null}
         <ResponsiveContainer width="100%" height={height}>
-          <BarChart data={data} margin={{ top: 8, right: 12, left: 4, bottom: 8 }}>
+          <BarChart data={data} margin={{ top: 28, right: 12, left: 4, bottom: 8 }} onClick={handleChartClick}>
             <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
             <XAxis dataKey={xKey} tick={{ fill: AXIS, fontSize: 11 }} interval={0} angle={-20} textAnchor="end" height={56} />
             <YAxis allowDecimals={false} tick={{ fill: AXIS, fontSize: 11 }} width={36} />
@@ -173,12 +178,12 @@ export function CopyableSimpleBar({
               fill={barColor}
               radius={[6, 6, 0, 0]}
               cursor={onBarClick ? 'pointer' : undefined}
-              onClick={onBarClick ? (_state, index) => onBarClick(data[index]) : undefined}
             >
               {showValueLabels ? (
                 <LabelList
                   dataKey={yKey}
                   position="top"
+                  offset={8}
                   fill={AXIS}
                   fontSize={11}
                   fontWeight={600}

@@ -12,6 +12,7 @@ export type NavKey =
   | 'l-2-3'
   | 'l-2-4'
   | 'l-2-5'
+  | 'm-3-0'
   | 'm-3-1'
   | 'm-3-2'
   | 'm-3-3'
@@ -78,6 +79,7 @@ export const NAV_GROUPS: NavGroupDef[] = [
     shortTitle: '입퇴사',
     subtitle: '입사 · 퇴직 · 임금피크 · 정년',
     items: [
+      { key: 'm-3-0', code: '3-0', label: '한눈에 보기' },
       { key: 'm-3-1', code: '3-1', label: '연도별 신입' },
       { key: 'm-3-2', code: '3-2', label: '연도별 퇴직' },
       { key: 'm-3-3', code: '3-3', label: '연도별 임금피크' },

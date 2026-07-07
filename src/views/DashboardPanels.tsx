@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { OverviewDashboard } from '../components/OverviewDashboard'
 import { MaternityOverviewDashboard } from '../components/MaternityOverviewDashboard'
+import { MovementOverviewDashboard } from '../components/MovementOverviewDashboard'
 import { SitemapPanel } from '../components/SitemapPanel'
 import { CareerCertificatePanel } from '../components/CareerCertificatePanel'
 import { LeaveCertificatePanel } from '../components/LeaveCertificatePanel'
@@ -194,6 +195,14 @@ export function DashboardPanels({
         <MaternityOverviewDashboard
           personnel={data.personnel}
           leave={data.leave}
+          baseDate={baseDate}
+          onNavigate={onNavigate}
+        />
+      ) : null}
+
+      {active === 'm-3-0' ? (
+        <MovementOverviewDashboard
+          personnel={data.personnel}
           baseDate={baseDate}
           onNavigate={onNavigate}
         />

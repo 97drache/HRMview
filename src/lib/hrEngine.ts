@@ -412,6 +412,64 @@ export function resignationsByMovementRank(
   })
 }
 
+export function hiresCountByYear(personnel: PersonnelRow[], fromYear: number, toYear: number): YearCountPoint[] {
+  const out: YearCountPoint[] = []
+  for (let year = fromYear; year <= toYear; year++) {
+    out.push({
+      year,
+      count: personnel.filter((p) => p.hireDate && p.hireDate.getFullYear() === year).length,
+    })
+  }
+  return out
+}
+
+export function resignationsCountByYear(
+  personnel: PersonnelRow[],
+  fromYear: number,
+  toYear: number,
+): YearCountPoint[] {
+  const out: YearCountPoint[] = []
+  for (let year = fromYear; year <= toYear; year++) {
+    out.push({
+      year,
+      count: personnel.filter((p) => p.resignDate && p.resignDate.getFullYear() === year).length,
+    })
+  }
+  return out
+}
+
+export function hiresDetailsByYear(personnel: PersonnelRow[], year: number): MovementYearDetailRow[] {
+  return personnel
+    .filter((p) => p.hireDate && p.hireDate.getFullYear() === year)
+    .map((p) => ({
+      name: p.name,
+      rankCategory: displayMovementRankCategory(
+        p.currentRank || p.promoteRank || p.hireRank || '',
+        p.jobType,
+      ),
+      gender: p.gender,
+      date: fmt(p.hireDate),
+      note: '입사',
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date, 'ko') || a.name.localeCompare(b.name, 'ko'))
+}
+
+export function resignationsDetailsByYear(personnel: PersonnelRow[], year: number): MovementYearDetailRow[] {
+  return personnel
+    .filter((p) => p.resignDate && p.resignDate.getFullYear() === year)
+    .map((p) => ({
+      name: p.name,
+      rankCategory: displayMovementRankCategory(
+        p.currentRank || p.promoteRank || p.hireRank || '',
+        p.jobType,
+      ),
+      gender: p.gender,
+      date: fmt(p.resignDate),
+      note: (p.resignReason || '—').trim() || '—',
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date, 'ko') || a.name.localeCompare(b.name, 'ko'))
+}
+
 export type WagePeakStage = '1단계' | '2단계'
 
 export function wagePeakByYear(personnel: PersonnelRow[], year: number) {
@@ -527,6 +585,14 @@ export type ChildcareLeaveYearDetailRow = {
   end: string
   reason: string
   childBirthYear: string
+}
+
+export type MovementYearDetailRow = {
+  name: string
+  rankCategory: string
+  gender: string
+  date: string
+  note: string
 }
 
 /** 최근 N개 연도 구간 (기준 연도 포함) */
