@@ -4,6 +4,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  LabelList,
   Legend,
   ResponsiveContainer,
   Tooltip,
@@ -102,6 +103,8 @@ export function CopyableSimpleBar({
   yName = '인원',
   height = 300,
   barColor = STACK_M,
+  showValueLabels = false,
+  onBarClick,
 }: {
   title?: string
   data: Record<string, string | number>[]
@@ -110,6 +113,8 @@ export function CopyableSimpleBar({
   yName?: string
   height?: number
   barColor?: string
+  showValueLabels?: boolean
+  onBarClick?: (row: Record<string, string | number>) => void
 }) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const [hint, setHint] = useState('')
@@ -162,7 +167,24 @@ export function CopyableSimpleBar({
                 fontSize: 12,
               }}
             />
-            <Bar dataKey={yKey} name={yName} fill={barColor} radius={[6, 6, 0, 0]} />
+            <Bar
+              dataKey={yKey}
+              name={yName}
+              fill={barColor}
+              radius={[6, 6, 0, 0]}
+              cursor={onBarClick ? 'pointer' : undefined}
+              onClick={onBarClick ? (_state, index) => onBarClick(data[index]) : undefined}
+            >
+              {showValueLabels ? (
+                <LabelList
+                  dataKey={yKey}
+                  position="top"
+                  fill={AXIS}
+                  fontSize={11}
+                  fontWeight={600}
+                />
+              ) : null}
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>

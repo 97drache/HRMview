@@ -519,6 +519,16 @@ function leavePersonKey(row: LeaveRow): string {
 
 export type YearCountPoint = { year: number; count: number }
 
+export type ChildcareLeaveYearDetailRow = {
+  name: string
+  rankCategory: string
+  gender: string
+  start: string
+  end: string
+  reason: string
+  childBirthYear: string
+}
+
 /** 최근 N개 연도 구간 (기준 연도 포함) */
 export function recentYearRange(endYear: number, span = 10): { from: number; to: number } {
   return { from: endYear - (span - 1), to: endYear }
@@ -559,6 +569,58 @@ export function childcareLeavePresentByYear(
     out.push({ year, count: people.size })
   }
   return out
+}
+
+function childcareLeaveYearDetailRows(
+  leave: LeaveRow[],
+  _year: number,
+  personnel: PersonnelRow[],
+  includeRow: (row: LeaveRow) => boolean,
+): ChildcareLeaveYearDetailRow[] {
+  const rows = leave
+    .filter((r) => isChildcareMainLeave(r) && includeRow(r))
+    .map((r) => {
+      const kind = String(r.leaveKind ?? '').trim() || '육아휴직'
+      return {
+        name: r.name,
+        rankCategory: rankCategoryForLeave(r, personnel),
+        gender: r.gender,
+        start: fmt(r.leaveStart),
+        end: fmt(r.leaveEnd),
+        reason: `휴직(${kind})`,
+        childBirthYear: childBirthYearFromLeaveChildInfo(r.childInfo),
+      }
+    })
+
+  rows.sort((a, b) => {
+    const byStart = String(a.start).localeCompare(String(b.start), 'ko')
+    if (byStart !== 0) return byStart
+    return a.name.localeCompare(b.name, 'ko')
+  })
+  return rows
+}
+
+export function childcareLeaveStartsDetailsByYear(
+  leave: LeaveRow[],
+  year: number,
+  personnel: PersonnelRow[],
+): ChildcareLeaveYearDetailRow[] {
+  return childcareLeaveYearDetailRows(
+    leave,
+    year,
+    personnel,
+    (r) => Boolean(r.leaveStart) && r.leaveStart!.getFullYear() === year,
+  )
+}
+
+export function childcareLeavePresentDetailsByYear(
+  leave: LeaveRow[],
+  year: number,
+  personnel: PersonnelRow[],
+): ChildcareLeaveYearDetailRow[] {
+  return childcareLeaveYearDetailRows(leave, year, personnel, (r) =>
+    periodOverlapsYear(r.leaveStart, r.leaveEnd, year),
+  )
 }
 
 export type LeaveReportRow = {

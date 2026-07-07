@@ -10,7 +10,7 @@ import { ExpenseProofPanel } from '../components/ExpenseProofPanel'
 import { AttachmentProofPanel } from '../components/AttachmentProofPanel'
 import { HrLawPanel } from '../components/HrLawPanel'
 import { CopyableStackedBar, CopyableYearRankChart } from '../components/CopyableChart'
-import type { NavKey } from '../navConfig'
+import { groupIdForNavKey, groupUsesHrData, type NavKey } from '../navConfig'
 import { LeaveNotificationPanel } from '../components/LeaveNotificationPanel'
 import { LaborSurveyLeavePanel, LaborSurveyWorkPanel } from '../components/LaborSurveyPanels'
 import { Card, SimpleTable } from '../components/Ui'
@@ -85,7 +85,7 @@ export function DashboardPanels({
   active: NavKey
   onNavigate: (k: NavKey) => void
 }) {
-  const { data, baseDate } = useData()
+  const { data, baseDate, dataLoading, dataLoadError } = useData()
   const [yearForMonth, setYearForMonth] = useState(() => baseDate.getFullYear())
   const [yearForMovement, setYearForMovement] = useState(() => baseDate.getFullYear())
   const [yearForShortWork, setYearForShortWork] = useState(() => baseDate.getFullYear())
@@ -154,6 +154,17 @@ export function DashboardPanels({
       return (
         <div className="mx-auto flex w-full flex-col gap-5 pb-10">
           <SitemapPanel onNavigate={onNavigate} />
+        </div>
+      )
+    }
+    if (groupUsesHrData(groupIdForNavKey(active))) {
+      return (
+        <div className="mx-auto flex max-w-6xl flex-col gap-5 pb-10">
+          <div className="rounded-xl border border-slate-200 bg-white px-6 py-10 text-center text-sm text-slate-600">
+            {dataLoading
+              ? '엑셀 데이터를 불러오는 중…'
+              : dataLoadError ?? 'HRdata.xlsx를 불러오지 못했습니다. data 폴더를 확인해 주세요.'}
+          </div>
         </div>
       )
     }

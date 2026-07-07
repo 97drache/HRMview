@@ -1,12 +1,16 @@
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale/ko'
+import { useMemo, useState } from 'react'
 import type { NavKey } from '../navConfig'
 import type { LeaveRow, PersonnelRow } from '../types/hr'
 import { CopyableSimpleBar } from './CopyableChart'
+import { Modal, SimpleTable } from './Ui'
 import {
   buildLeaveReport,
   buildMaternityReport,
+  childcareLeavePresentDetailsByYear,
   childcareLeavePresentByYear,
+  childcareLeaveStartsDetailsByYear,
   childcareLeaveStartsByYear,
   recentYearRange,
 } from '../lib/hrEngine'
@@ -45,6 +49,10 @@ export function MaternityOverviewDashboard({
 }) {
   const y = baseDate.getFullYear()
   const { from, to } = recentYearRange(y, 10)
+  const [detailModal, setDetailModal] = useState<{
+    mode: 'starts' | 'present'
+    year: number
+  } | null>(null)
 
   const leaveRows = buildLeaveReport(leave, baseDate, personnel)
   const onChildcare = leaveRows.filter((r) => !r.scheduled && /육아/.test(r.reason)).length
@@ -62,6 +70,12 @@ export function MaternityOverviewDashboard({
 
   const startsChart = startsSeries.map((p) => ({ year: `${p.year}`, 인원: p.count }))
   const presentChart = presentSeries.map((p) => ({ year: `${p.year}`, 인원: p.count }))
+  const detailRows = useMemo(() => {
+    if (!detailModal) return []
+    return detailModal.mode === 'starts'
+      ? childcareLeaveStartsDetailsByYear(leave, detailModal.year, personnel)
+      : childcareLeavePresentDetailsByYear(leave, detailModal.year, personnel)
+  }, [detailModal, leave, personnel])
 
   const quick = [
     { key: 'l-2-1' as NavKey, label: '2-1 휴직' },
@@ -79,6 +93,8 @@ export function MaternityOverviewDashboard({
           <div className="pointer-events-none absolute -bottom-20 left-1/3 h-40 w-40 rounded-full bg-amber-400/15 blur-3xl" />
           <div className="relative">
             <p className="text-sm font-medium text-rose-200/90">
+              <span className="font-mono text-xs tracking-wide text-rose-100/80">2-0</span>
+              <span className="mx-2">·</span>
               모성보호 · 기준일{' '}
               <time dateTime={format(baseDate, 'yyyy-MM-dd')}>
                 {format(baseDate, 'yyyy년 M월 d일 (EEE)', { locale: ko })}
@@ -132,6 +148,8 @@ export function MaternityOverviewDashboard({
             yKey="인원"
             height={280}
             barColor={ROSE}
+            showValueLabels
+            onBarClick={(row) => setDetailModal({ mode: 'starts', year: Number(row.year) })}
           />
         </div>
 
@@ -147,6 +165,8 @@ export function MaternityOverviewDashboard({
             yKey="인원"
             height={280}
             barColor={AMBER}
+            showValueLabels
+            onBarClick={(row) => setDetailModal({ mode: 'present', year: Number(row.year) })}
           />
         </div>
       </div>
@@ -172,6 +192,34 @@ export function MaternityOverviewDashboard({
         <span className="inline-block h-2 w-2 rounded-sm align-middle" style={{ background: ROSE }} /> · 해당{' '}
         <span className="inline-block h-2 w-2 rounded-sm align-middle" style={{ background: AMBER }} />
       </p>
+
+      <Modal
+        open={Boolean(detailModal)}
+        title={
+          detailModal
+            ? `${detailModal.year}년 육아휴직 ${detailModal.mode === 'starts' ? '개시' : '해당'} 인원`
+            : ''
+        }
+        onClose={() => setDetailModal(null)}
+      >
+        <p className="mb-3 text-sm text-slate-600">
+          {detailModal?.mode === 'starts'
+            ? '해당 연도에 육아휴직을 시작한 인원입니다.'
+            : '해당 연도에 1일이라도 육아휴직 기간이 겹치는 인원입니다.'}
+        </p>
+        <SimpleTable
+          cols={[
+            { key: 'name', label: '성명' },
+            { key: 'rankCategory', label: '직급' },
+            { key: 'gender', label: '성별' },
+            { key: 'start', label: '시작' },
+            { key: 'end', label: '종료' },
+            { key: 'reason', label: '사유' },
+            { key: 'childBirthYear', label: '자녀출생연도' },
+          ]}
+          rows={detailRows}
+        />
+      </Modal>
     </div>
   )
 }
