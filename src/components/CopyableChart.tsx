@@ -18,6 +18,48 @@ const AXIS = '#57534e'
 const GRID = '#e7e5e4'
 
 type SeriesKey = { key: string; color: string; name: string }
+export type ChartAppearance = 'panel' | 'flat'
+
+function chartRootClass(appearance: ChartAppearance) {
+  return appearance === 'flat' ? 'w-full min-w-0 space-y-2' : 'mt-6 w-full space-y-2'
+}
+
+function chartShellClass(appearance: ChartAppearance) {
+  return appearance === 'flat'
+    ? 'min-w-0 w-full overflow-hidden rounded-lg bg-white'
+    : 'rounded-xl border border-sky-100/90 bg-gradient-to-b from-sky-50/90 to-cyan-50/40 p-4 shadow-inner'
+}
+
+function copyBackground(appearance: ChartAppearance) {
+  return appearance === 'flat' ? '#ffffff' : '#f6f1e7'
+}
+
+function CopyChartToolbar({
+  hint,
+  onCopy,
+  appearance,
+}: {
+  hint: string
+  onCopy: () => void
+  appearance: ChartAppearance
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <button
+        type="button"
+        onClick={onCopy}
+        className={
+          appearance === 'flat'
+            ? 'rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-100'
+            : 'rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-800 shadow-sm hover:bg-stone-50'
+        }
+      >
+        그래프 이미지 복사
+      </button>
+      {hint ? <span className="text-xs text-stone-600">{hint}</span> : null}
+    </div>
+  )
+}
 
 export function CopyableStackedBar({
   title,
@@ -25,12 +67,14 @@ export function CopyableStackedBar({
   xKey,
   series,
   height = 320,
+  appearance = 'panel',
 }: {
   title?: string
   data: Record<string, string | number>[]
   xKey: string
   series: SeriesKey[]
   height?: number
+  appearance?: ChartAppearance
 }) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const [hint, setHint] = useState('')
@@ -41,7 +85,7 @@ export function CopyableStackedBar({
     setHint('')
     try {
       const canvas = await html2canvas(el, {
-        backgroundColor: '#f6f1e7',
+        backgroundColor: copyBackground(appearance),
         scale: 2,
         logging: false,
       })
@@ -58,21 +102,12 @@ export function CopyableStackedBar({
   }
 
   return (
-    <div className="mt-6 w-full space-y-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={() => void copyImage()}
-          className="rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-800 shadow-sm hover:bg-stone-50"
-        >
-          그래프 이미지 복사
-        </button>
-        {hint ? <span className="text-xs text-stone-600">{hint}</span> : null}
-      </div>
-      <div ref={wrapRef} className="rounded-xl border border-sky-100/90 bg-gradient-to-b from-sky-50/90 to-cyan-50/40 p-4 shadow-inner">
+    <div className={chartRootClass(appearance)}>
+      <CopyChartToolbar hint={hint} onCopy={() => void copyImage()} appearance={appearance} />
+      <div ref={wrapRef} className={chartShellClass(appearance)}>
         {title ? <div className="mb-2 text-center text-sm font-semibold text-slate-800">{title}</div> : null}
         <ResponsiveContainer width="100%" height={height}>
-          <BarChart data={data} margin={{ top: 8, right: 12, left: 4, bottom: 8 }}>
+          <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 8 }}>
             <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
             <XAxis dataKey={xKey} tick={{ fill: AXIS, fontSize: 11 }} />
             <YAxis allowDecimals={false} tick={{ fill: AXIS, fontSize: 11 }} width={36} />
@@ -105,6 +140,7 @@ export function CopyableSimpleBar({
   barColor = STACK_M,
   showValueLabels = false,
   onBarClick,
+  appearance = 'panel',
 }: {
   title?: string
   data: Record<string, string | number>[]
@@ -115,6 +151,7 @@ export function CopyableSimpleBar({
   barColor?: string
   showValueLabels?: boolean
   onBarClick?: (row: Record<string, string | number>) => void
+  appearance?: ChartAppearance
 }) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const [hint, setHint] = useState('')
@@ -130,7 +167,7 @@ export function CopyableSimpleBar({
     setHint('')
     try {
       const canvas = await html2canvas(el, {
-        backgroundColor: '#f6f1e7',
+        backgroundColor: copyBackground(appearance),
         scale: 2,
         logging: false,
       })
@@ -147,21 +184,12 @@ export function CopyableSimpleBar({
   }
 
   return (
-    <div className="mt-6 w-full space-y-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={() => void copyImage()}
-          className="rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-800 shadow-sm hover:bg-stone-50"
-        >
-          그래프 이미지 복사
-        </button>
-        {hint ? <span className="text-xs text-stone-600">{hint}</span> : null}
-      </div>
-      <div ref={wrapRef} className="rounded-xl border border-sky-100/90 bg-gradient-to-b from-sky-50/90 to-cyan-50/40 p-4 shadow-inner">
+    <div className={chartRootClass(appearance)}>
+      <CopyChartToolbar hint={hint} onCopy={() => void copyImage()} appearance={appearance} />
+      <div ref={wrapRef} className={chartShellClass(appearance)}>
         {title ? <div className="mb-2 text-center text-sm font-semibold text-slate-800">{title}</div> : null}
         <ResponsiveContainer width="100%" height={height}>
-          <BarChart data={data} margin={{ top: 28, right: 12, left: 4, bottom: 8 }} onClick={handleChartClick}>
+          <BarChart data={data} margin={{ top: 28, right: 8, left: 0, bottom: 8 }} onClick={handleChartClick}>
             <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
             <XAxis dataKey={xKey} tick={{ fill: AXIS, fontSize: 11 }} interval={0} angle={-20} textAnchor="end" height={56} />
             <YAxis allowDecimals={false} tick={{ fill: AXIS, fontSize: 11 }} width={36} />
@@ -205,11 +233,13 @@ export function CopyableYearRankChart({
   data,
   keys,
   height,
+  appearance = 'panel',
 }: {
   title?: string
   data: Record<string, string | number>[]
   keys: { key: string; label: string }[]
   height?: number
+  appearance?: ChartAppearance
 }) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const [hint, setHint] = useState('')
@@ -221,7 +251,7 @@ export function CopyableYearRankChart({
     setHint('')
     try {
       const canvas = await html2canvas(el, {
-        backgroundColor: '#f6f1e7',
+        backgroundColor: copyBackground(appearance),
         scale: 2,
         logging: false,
       })
@@ -238,21 +268,12 @@ export function CopyableYearRankChart({
   }
 
   return (
-    <div className="mt-6 w-full space-y-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={() => void copyImage()}
-          className="rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-800 shadow-sm hover:bg-stone-50"
-        >
-          그래프 이미지 복사
-        </button>
-        {hint ? <span className="text-xs text-stone-600">{hint}</span> : null}
-      </div>
-      <div ref={wrapRef} className="rounded-xl border border-sky-100/90 bg-gradient-to-b from-sky-50/90 to-cyan-50/40 p-4 shadow-inner">
+    <div className={chartRootClass(appearance)}>
+      <CopyChartToolbar hint={hint} onCopy={() => void copyImage()} appearance={appearance} />
+      <div ref={wrapRef} className={chartShellClass(appearance)}>
         {title ? <div className="mb-2 text-center text-sm font-semibold text-slate-800">{title}</div> : null}
         <ResponsiveContainer width="100%" height={h}>
-          <BarChart layout="vertical" data={data} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
+          <BarChart layout="vertical" data={data} margin={{ top: 8, right: 8, left: 0, bottom: 8 }}>
             <CartesianGrid strokeDasharray="3 3" stroke={GRID} horizontal={false} />
             <XAxis type="number" allowDecimals={false} tick={{ fill: AXIS, fontSize: 11 }} />
             <YAxis type="category" dataKey="year" width={56} tick={{ fill: AXIS, fontSize: 11 }} />

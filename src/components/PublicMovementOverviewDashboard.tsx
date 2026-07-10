@@ -47,9 +47,10 @@ export function PublicMovementOverviewDashboard({ snap }: { snap: PublicHeadcoun
           <p className="mt-0.5 text-xs text-slate-500">
             {from}~{to}년 · 입사일 기준
           </p>
-          <div className="mt-3 h-[240px]">
+          <div className="mt-3 min-w-0 overflow-hidden">
             <CopyableSimpleBar
               title={`입사 (${from}~${to})`}
+              appearance="flat"
               data={hiresChart}
               xKey="year"
               yKey="인원"
@@ -67,9 +68,10 @@ export function PublicMovementOverviewDashboard({ snap }: { snap: PublicHeadcoun
           <p className="mt-0.5 text-xs text-slate-500">
             {from}~{to}년 · 퇴직일 기준
           </p>
-          <div className="mt-3 h-[240px]">
+          <div className="mt-3 min-w-0 overflow-hidden">
             <CopyableSimpleBar
               title={`퇴직 (${from}~${to})`}
+              appearance="flat"
               data={resignsChart}
               xKey="year"
               yKey="인원"

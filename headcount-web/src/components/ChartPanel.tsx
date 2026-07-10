@@ -14,7 +14,7 @@ export function ChartPanel({
 }) {
   return (
     <HcBlock title={title}>
-      <div className={`mx-auto w-full ${heightClass}`}>{children}</div>
+      <div className={`mx-auto min-w-0 w-full overflow-hidden ${heightClass}`}>{children}</div>
     </HcBlock>
   )
 }

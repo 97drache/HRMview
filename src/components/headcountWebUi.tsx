@@ -64,11 +64,11 @@ export function HcBlock({
   className?: string
 }) {
   return (
-    <section className={`rounded-[1.25rem] border border-slate-200 bg-white px-4 py-5 shadow-sm sm:px-5 sm:py-6 ${className}`}>
+    <section className={`min-w-0 overflow-hidden rounded-[1.25rem] border border-slate-200 bg-white px-4 py-5 shadow-sm sm:px-5 sm:py-6 ${className}`}>
       {title ? (
         <h3 className="mb-4 text-center text-sm font-semibold text-[#444444]">{title}</h3>
       ) : null}
-      {children}
+      <div className="min-w-0">{children}</div>
     </section>
   )
 }

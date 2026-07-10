@@ -202,6 +202,7 @@ function renderPanel(
         <ChartPanel title="직종별 인원 (남·여)">
           <CopyableStackedBar
             title=""
+            appearance="flat"
             data={jg.map((r) => ({ 직종: r.job, 남: r.male, 여: r.female }))}
             xKey="직종"
             series={[
@@ -238,6 +239,7 @@ function renderPanel(
       <ChartPanel title="고용 형태">
         <CopyableStackedBar
           title=""
+          appearance="flat"
           data={ge.filter((r) => r.label !== '계').map((r) => ({
             구분: r.label,
             정규직: r.regular,

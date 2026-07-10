@@ -54,9 +54,10 @@ export function PublicMaternityOverviewDashboard({ snap }: { snap: PublicHeadcou
           <p className="mt-0.5 text-xs text-slate-500">
             {from}~{to}년 · 해당 연도 개시 인원
           </p>
-          <div className="mt-3 h-[240px]">
+          <div className="mt-3 min-w-0 overflow-hidden">
             <CopyableSimpleBar
               title={`육아휴직 개시 (${from}~${to})`}
+              appearance="flat"
               data={startsChart}
               xKey="year"
               yKey="인원"
@@ -74,9 +75,10 @@ export function PublicMaternityOverviewDashboard({ snap }: { snap: PublicHeadcou
           <p className="mt-0.5 text-xs text-slate-500">
             {from}~{to}년 · 1일이라도 해당하는 인원
           </p>
-          <div className="mt-3 h-[240px]">
+          <div className="mt-3 min-w-0 overflow-hidden">
             <CopyableSimpleBar
               title={`육아휴직 해당 (${from}~${to})`}
+              appearance="flat"
               data={presentChart}
               xKey="year"
               yKey="인원"

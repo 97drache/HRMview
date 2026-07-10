@@ -68,9 +68,9 @@ export function PublicOverviewDashboard({
       </div>
 
       <HcBlock title="직종별 인원">
-        <div className="w-full">
+        <div className="min-w-0 w-full overflow-hidden">
           <ResponsiveContainer width="100%" height={252}>
-            <BarChart data={barData} margin={{ top: 8, right: 8, left: -8, bottom: 48 }}>
+            <BarChart data={barData} margin={{ top: 8, right: 8, left: 0, bottom: 48 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#ccc" vertical={false} />
               <XAxis
                 dataKey="name"
@@ -94,8 +94,9 @@ export function PublicOverviewDashboard({
         {trend.length === 0 ? (
           <p className="py-8 text-center text-sm text-[#666]">연도별 데이터가 없습니다.</p>
         ) : (
-          <ResponsiveContainer width="100%" height={220}>
-            <LineChart data={trend} margin={{ top: 8, right: 12, left: 0, bottom: 8 }}>
+          <div className="min-w-0 w-full overflow-hidden">
+            <ResponsiveContainer width="100%" height={220}>
+              <LineChart data={trend} margin={{ top: 8, right: 8, left: 0, bottom: 8 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#ccc" />
               <XAxis dataKey="year" tick={{ fill: HC.label, fontSize: 10 }} />
               <YAxis
@@ -116,6 +117,7 @@ export function PublicOverviewDashboard({
               />
             </LineChart>
           </ResponsiveContainer>
+          </div>
         )}
       </HcBlock>
     </HcPage>
