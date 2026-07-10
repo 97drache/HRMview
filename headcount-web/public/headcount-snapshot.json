@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-07-10T08:34:02.145Z",
+  "generatedAt": "2026-07-10T08:41:14.065Z",
   "baseDate": "2026-07-15",
   "sheetNotes": [],
   "empty": false,
@@ -1941,5 +1941,192 @@
       }
     ]
   },
-  "meritTrainingCount": 1
+  "meritTrainingCount": 1,
+  "maternityOverview": {
+    "statYear": 2026,
+    "fromYear": 2017,
+    "toYear": 2026,
+    "onChildcare": 17,
+    "childcareScheduled": 7,
+    "onMaternity": 2,
+    "maternityScheduled": 2,
+    "onLeave": 19,
+    "thisYearStarts": 13,
+    "thisYearPresent": 26,
+    "startsByYear": [
+      {
+        "year": 2017,
+        "count": 3
+      },
+      {
+        "year": 2018,
+        "count": 1
+      },
+      {
+        "year": 2019,
+        "count": 10
+      },
+      {
+        "year": 2020,
+        "count": 14
+      },
+      {
+        "year": 2021,
+        "count": 18
+      },
+      {
+        "year": 2022,
+        "count": 12
+      },
+      {
+        "year": 2023,
+        "count": 17
+      },
+      {
+        "year": 2024,
+        "count": 14
+      },
+      {
+        "year": 2025,
+        "count": 13
+      },
+      {
+        "year": 2026,
+        "count": 13
+      }
+    ],
+    "presentByYear": [
+      {
+        "year": 2017,
+        "count": 4
+      },
+      {
+        "year": 2018,
+        "count": 4
+      },
+      {
+        "year": 2019,
+        "count": 11
+      },
+      {
+        "year": 2020,
+        "count": 22
+      },
+      {
+        "year": 2021,
+        "count": 32
+      },
+      {
+        "year": 2022,
+        "count": 32
+      },
+      {
+        "year": 2023,
+        "count": 30
+      },
+      {
+        "year": 2024,
+        "count": 34
+      },
+      {
+        "year": 2025,
+        "count": 30
+      },
+      {
+        "year": 2026,
+        "count": 26
+      }
+    ]
+  },
+  "movementOverview": {
+    "statYear": 2026,
+    "fromYear": 2017,
+    "toYear": 2026,
+    "thisYearHires": 8,
+    "thisYearResigns": 4,
+    "hiresByYear": [
+      {
+        "year": 2017,
+        "count": 8
+      },
+      {
+        "year": 2018,
+        "count": 80
+      },
+      {
+        "year": 2019,
+        "count": 5
+      },
+      {
+        "year": 2020,
+        "count": 6
+      },
+      {
+        "year": 2021,
+        "count": 0
+      },
+      {
+        "year": 2022,
+        "count": 6
+      },
+      {
+        "year": 2023,
+        "count": 12
+      },
+      {
+        "year": 2024,
+        "count": 6
+      },
+      {
+        "year": 2025,
+        "count": 14
+      },
+      {
+        "year": 2026,
+        "count": 8
+      }
+    ],
+    "resignsByYear": [
+      {
+        "year": 2017,
+        "count": 3
+      },
+      {
+        "year": 2018,
+        "count": 4
+      },
+      {
+        "year": 2019,
+        "count": 5
+      },
+      {
+        "year": 2020,
+        "count": 4
+      },
+      {
+        "year": 2021,
+        "count": 10
+      },
+      {
+        "year": 2022,
+        "count": 4
+      },
+      {
+        "year": 2023,
+        "count": 3
+      },
+      {
+        "year": 2024,
+        "count": 5
+      },
+      {
+        "year": 2025,
+        "count": 12
+      },
+      {
+        "year": 2026,
+        "count": 4
+      }
+    ]
+  }
 }

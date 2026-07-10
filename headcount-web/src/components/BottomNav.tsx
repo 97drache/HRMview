@@ -4,8 +4,8 @@ const SHORT: Partial<Record<HeadcountNav, string>> = {
   home: '한눈에',
   'p-1-1': '직종',
   'p-1-2': '고용',
-  'p-1-3': '연도',
-  'p-1-4': '월별',
+  'l-2-0': '모성',
+  'm-3-0': '입퇴사',
   proof: '증빙',
 }
 

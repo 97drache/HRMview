@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { CopyableStackedBar, CopyableYearRankChart } from '../../src/components/CopyableChart'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { CopyableStackedBar } from '../../src/components/CopyableChart'
+import { PublicMaternityOverviewDashboard } from '../../src/components/PublicMaternityOverviewDashboard'
+import { PublicMovementOverviewDashboard } from '../../src/components/PublicMovementOverviewDashboard'
 import { PublicOverviewDashboard } from '../../src/components/PublicOverviewDashboard'
 import { SimpleTable } from '../../src/components/Ui'
 import type { PublicHeadcountSnapshotV1 } from '../../src/lib/headcountPublicSnapshot'
-import { RANK_BAND_ORDER } from '../../src/lib/jobClassification'
 import { HC, HcTableWrap } from '../../src/components/headcountWebUi'
 import { ExpenseProofPanel } from '../../src/components/ExpenseProofPanel'
 import { AttachmentProofPanel } from '../../src/components/AttachmentProofPanel'
@@ -35,7 +36,6 @@ export function App() {
   const [active, setActive] = useState<HeadcountNav>(() => readNavFromHash())
   const [snap, setSnap] = useState<PublicHeadcountSnapshotV1 | null>(null)
   const [err, setErr] = useState<string | null>(null)
-  const [yearForMonth, setYearForMonth] = useState<number | null>(null)
 
   const selectNav = useCallback((key: HeadcountNav) => {
     setActive(key)
@@ -60,8 +60,6 @@ export function App() {
         if (cancelled) return
         if (!isSnapshot(data)) throw new Error('스냅샷 형식이 올바르지 않습니다.')
         setSnap(data)
-        const y = Number(data.baseDate.slice(0, 4))
-        setYearForMonth(Number.isFinite(y) ? y : new Date().getFullYear())
         setErr(null)
       } catch (e) {
         if (!cancelled) setErr(e instanceof Error ? e.message : String(e))
@@ -71,19 +69,6 @@ export function App() {
       cancelled = true
     }
   }, [])
-
-  const monthRows = useMemo(() => {
-    if (!snap || yearForMonth == null) return []
-    return snap.monthBoundaryByYear[String(yearForMonth)] ?? []
-  }, [snap, yearForMonth])
-
-  const yearOptions = useMemo(() => {
-    if (!snap) return []
-    return Object.keys(snap.monthBoundaryByYear)
-      .map(Number)
-      .filter((n) => Number.isFinite(n))
-      .sort((a, b) => a - b)
-  }, [snap])
 
   if (err) {
     return (
@@ -96,7 +81,7 @@ export function App() {
     )
   }
 
-  if (!snap || yearForMonth == null) {
+  if (!snap) {
     return (
       <div className="flex min-h-dvh items-center justify-center text-sm text-[#666]">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#006B00] border-t-transparent" />
@@ -156,11 +141,16 @@ export function App() {
             <PublicOverviewDashboard snap={snap} />
           ) : isProofNav(active) ? (
             renderProofPanel(normalizeProofNav(active), selectNav)
-          ) : active === 'p-1-1' ||
-              active === 'p-1-2' ||
-              active === 'p-1-3' ||
-              active === 'p-1-4' ? (
-            renderPanel(active, snap, yearForMonth, setYearForMonth, yearOptions, monthRows)
+          ) : active === 'l-2-0' ? (
+            <HeadcountCard code="2-0" title="모성보호">
+              <PublicMaternityOverviewDashboard snap={snap} />
+            </HeadcountCard>
+          ) : active === 'm-3-0' ? (
+            <HeadcountCard code="3-0" title="입퇴사">
+              <PublicMovementOverviewDashboard snap={snap} />
+            </HeadcountCard>
+          ) : active === 'p-1-1' || active === 'p-1-2' ? (
+            renderPanel(active, snap)
           ) : null}
         </main>
       </div>
@@ -186,12 +176,8 @@ function renderProofPanel(active: ProofSubNavKey, selectNav: (key: HeadcountNav)
 }
 
 function renderPanel(
-  active: Exclude<HeadcountNav, 'home' | 'proof' | 'doc-6-1' | 'doc-6-2' | 'doc-6-3'>,
+  active: 'p-1-1' | 'p-1-2',
   snap: PublicHeadcountSnapshotV1,
-  yearForMonth: number,
-  setYearForMonth: (y: number) => void,
-  yearOptions: number[],
-  monthRows: { month: number; monthStart: number; monthEnd: number }[],
 ): ReactNode {
   if (active === 'p-1-1') {
     const jg = snap.jobGender
@@ -229,112 +215,42 @@ function renderPanel(
     )
   }
 
-  if (active === 'p-1-2') {
-    const ge = snap.genderEmployment
-    return (
-      <HeadcountCard code="1-2" title="남녀·고용 형태">
-        <HcTableWrap>
-          <SimpleTable
-            layout="centered"
-            cols={[
-              { key: 'label', label: '구분' },
-              { key: 'regular', label: '정규' },
-              { key: 'mugi', label: '무기' },
-              { key: 'total', label: '계' },
-            ]}
-            rows={ge.map((r) => ({
-              label: r.label,
-              regular: r.regular,
-              mugi: r.mugi,
-              total: r.total,
-            }))}
-          />
-        </HcTableWrap>
-        <ChartPanel title="고용 형태">
-          <CopyableStackedBar
-            title=""
-            data={ge.filter((r) => r.label !== '계').map((r) => ({
-              구분: r.label,
-              정규직: r.regular,
-              무기직: r.mugi,
-            }))}
-            xKey="구분"
-            series={[
-              { key: '정규직', name: '정규', color: HC.green },
-              { key: '무기직', name: '무기', color: HC.gold },
-            ]}
-            height={240}
-          />
-        </ChartPanel>
-      </HeadcountCard>
-    )
-  }
-
-  if (active === 'p-1-3') {
-    const yr = snap.yearlyRank
-    const cols = [
-      { key: 'y', label: '연도' },
-      ...RANK_BAND_ORDER.map((k) => ({ key: k, label: k })),
-      { key: 'total', label: '계' },
-    ]
-    const rows = yr.map((r) => {
-      const o: Record<string, ReactNode> = { y: r.year, total: r.total }
-      for (const k of RANK_BAND_ORDER) o[k] = r[k]
-      return o
-    })
-    const chartData = yr.map((r) => {
-      const o: Record<string, string | number> = { year: `${r.year}` }
-      for (const k of RANK_BAND_ORDER) o[k] = r[k]
-      return o
-    })
-    const chartKeys = RANK_BAND_ORDER.map((k) => ({ key: k, label: k }))
-    return (
-      <HeadcountCard code="1-3" title="연도·직급">
-        <HcTableWrap>
-          <SimpleTable layout="centered" cols={cols} rows={rows} />
-        </HcTableWrap>
-        <ChartPanel title="연도별 직급" heightClass="h-[280px] sm:h-[320px]">
-          <CopyableYearRankChart title="" data={chartData} keys={chartKeys} height={260} />
-        </ChartPanel>
-      </HeadcountCard>
-    )
-  }
-
-  if (active === 'p-1-4') {
-    return (
-      <HeadcountCard code="1-4" title="월초·월말">
-        <label className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 py-3 text-sm font-medium text-[#444]">
-          연도
-          <select
-            className="rounded-lg border-0 bg-white px-3 py-1.5 text-sm font-semibold text-[#1A1A1A] shadow-sm"
-            value={yearForMonth}
-            onChange={(e) => setYearForMonth(Number(e.target.value))}
-          >
-            {(yearOptions.length ? yearOptions : [yearForMonth]).map((y) => (
-              <option key={y} value={y}>
-                {y}년
-              </option>
-            ))}
-          </select>
-        </label>
-        <HcTableWrap>
-          <SimpleTable
-            layout="centered"
-            cols={[
-              { key: 'm', label: '월' },
-              { key: 'ms', label: '월초' },
-              { key: 'me', label: '월말' },
-            ]}
-            rows={monthRows.map((r) => ({
-              m: `${r.month}월`,
-              ms: r.monthStart,
-              me: r.monthEnd,
-            }))}
-          />
-        </HcTableWrap>
-      </HeadcountCard>
-    )
-  }
-
-  return null
+  const ge = snap.genderEmployment
+  return (
+    <HeadcountCard code="1-2" title="남녀·고용 형태">
+      <HcTableWrap>
+        <SimpleTable
+          layout="centered"
+          cols={[
+            { key: 'label', label: '구분' },
+            { key: 'regular', label: '정규' },
+            { key: 'mugi', label: '무기' },
+            { key: 'total', label: '계' },
+          ]}
+          rows={ge.map((r) => ({
+            label: r.label,
+            regular: r.regular,
+            mugi: r.mugi,
+            total: r.total,
+          }))}
+        />
+      </HcTableWrap>
+      <ChartPanel title="고용 형태">
+        <CopyableStackedBar
+          title=""
+          data={ge.filter((r) => r.label !== '계').map((r) => ({
+            구분: r.label,
+            정규직: r.regular,
+            무기직: r.mugi,
+          }))}
+          xKey="구분"
+          series={[
+            { key: '정규직', name: '정규', color: HC.green },
+            { key: '무기직', name: '무기', color: HC.gold },
+          ]}
+          height={240}
+        />
+      </ChartPanel>
+    </HeadcountCard>
+  )
 }

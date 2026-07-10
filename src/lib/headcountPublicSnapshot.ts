@@ -4,17 +4,52 @@ import { fmt } from './dates'
 import {
   buildLeaveReport,
   buildMaternityReport,
+  childcareLeavePresentByYear,
+  childcareLeaveStartsByYear,
   headcountByGenderEmployment,
   headcountByJobGenderOrdered,
+  hiresCountByYear,
   meritTrainingOn,
   monthBoundaryHeadcounts,
   newHiresByMovementRank,
+  recentYearRange,
   resignationsByMovementRank,
+  resignationsCountByYear,
   wagePeakByYear,
   yearlyHeadcountByRankBandDesc,
+  type YearCountPoint,
 } from './hrEngine'
 
 export type MonthBoundaryRow = { month: number; monthStart: number; monthEnd: number }
+
+export type PublicYearCount = YearCountPoint
+
+/** 2-0 모성보호 한눈에 보기 (집계만, 성명 없음) */
+export type PublicMaternityOverview = {
+  statYear: number
+  fromYear: number
+  toYear: number
+  onChildcare: number
+  childcareScheduled: number
+  onMaternity: number
+  maternityScheduled: number
+  onLeave: number
+  thisYearStarts: number
+  thisYearPresent: number
+  startsByYear: PublicYearCount[]
+  presentByYear: PublicYearCount[]
+}
+
+/** 3-0 입퇴사 한눈에 보기 (집계만, 성명 없음) */
+export type PublicMovementOverview = {
+  statYear: number
+  fromYear: number
+  toYear: number
+  thisYearHires: number
+  thisYearResigns: number
+  hiresByYear: PublicYearCount[]
+  resignsByYear: PublicYearCount[]
+}
 
 /** 1-0 한눈에 보기 KPI (인원 수만, 성명 없음) */
 export type PublicOverviewKpi = {
@@ -51,6 +86,10 @@ export type PublicHeadcountSnapshotV1 = {
   monthBoundaryByYear: Record<string, MonthBoundaryRow[]>
   /** 1-5: 기준일에 공로연수 구간 인원 수(성명 미포함) */
   meritTrainingCount: number
+  /** 2-0 모성보호 한눈에 보기 */
+  maternityOverview?: PublicMaternityOverview
+  /** 3-0 입퇴사 한눈에 보기 */
+  movementOverview?: PublicMovementOverview
 }
 
 function computeYearRange(personnel: PersonnelRow[], base: Date): { from: number; to: number } {
@@ -138,6 +177,103 @@ export function resolvePublicOverviewKpi(snap: PublicHeadcountSnapshotV1): Publi
 /** 월경계 JSON 용량 상한: 최근 N개 연도만 포함 */
 const MAX_MONTH_BOUNDARY_YEARS = 24
 
+export function computePublicMaternityOverview(
+  personnel: PersonnelRow[],
+  leave: LeaveRow[],
+  baseDate: Date,
+): PublicMaternityOverview {
+  const base = startOfDay(baseDate)
+  const y = base.getFullYear()
+  const { from, to } = recentYearRange(y, 10)
+
+  const leaveRows = buildLeaveReport(leave, base, personnel)
+  const onChildcare = leaveRows.filter((r) => !r.scheduled && /육아/.test(r.reason)).length
+  const childcareScheduled = leaveRows.filter((r) => r.scheduled && /육아/.test(r.reason)).length
+
+  const matRows = buildMaternityReport(leave, base, personnel)
+  const onMaternity = matRows.filter((r) => !r.scheduled).length
+  const maternityScheduled = matRows.filter((r) => r.scheduled).length
+  const onLeave = leaveRows.filter((r) => !r.scheduled).length
+
+  const startsByYear = childcareLeaveStartsByYear(leave, from, to)
+  const presentByYear = childcareLeavePresentByYear(leave, from, to)
+
+  return {
+    statYear: y,
+    fromYear: from,
+    toYear: to,
+    onChildcare,
+    childcareScheduled,
+    onMaternity,
+    maternityScheduled,
+    onLeave,
+    thisYearStarts: startsByYear.find((p) => p.year === y)?.count ?? 0,
+    thisYearPresent: presentByYear.find((p) => p.year === y)?.count ?? 0,
+    startsByYear,
+    presentByYear,
+  }
+}
+
+export function computePublicMovementOverview(
+  personnel: PersonnelRow[],
+  baseDate: Date,
+): PublicMovementOverview {
+  const base = startOfDay(baseDate)
+  const y = base.getFullYear()
+  const { from, to } = recentYearRange(y, 10)
+  const hiresByYear = hiresCountByYear(personnel, from, to)
+  const resignsByYear = resignationsCountByYear(personnel, from, to)
+
+  return {
+    statYear: y,
+    fromYear: from,
+    toYear: to,
+    thisYearHires: hiresByYear.find((p) => p.year === y)?.count ?? 0,
+    thisYearResigns: resignsByYear.find((p) => p.year === y)?.count ?? 0,
+    hiresByYear,
+    resignsByYear,
+  }
+}
+
+export function resolvePublicMaternityOverview(snap: PublicHeadcountSnapshotV1): PublicMaternityOverview | null {
+  if (snap.maternityOverview) return snap.maternityOverview
+  const kpi = resolvePublicOverviewKpi(snap)
+  if (!kpi.onLeave && !kpi.onMaternity && !kpi.leaveScheduled && !kpi.maternityScheduled) return null
+  const y = kpi.statYear
+  const { from, to } = recentYearRange(y, 10)
+  return {
+    statYear: y,
+    fromYear: from,
+    toYear: to,
+    onChildcare: 0,
+    childcareScheduled: 0,
+    onMaternity: kpi.onMaternity,
+    maternityScheduled: kpi.maternityScheduled,
+    onLeave: kpi.onLeave,
+    thisYearStarts: 0,
+    thisYearPresent: 0,
+    startsByYear: [],
+    presentByYear: [],
+  }
+}
+
+export function resolvePublicMovementOverview(snap: PublicHeadcountSnapshotV1): PublicMovementOverview | null {
+  if (snap.movementOverview) return snap.movementOverview
+  const kpi = resolvePublicOverviewKpi(snap)
+  if (!kpi.hiresYtd && !kpi.resignsYtd) return null
+  const y = kpi.statYear
+  const { from, to } = recentYearRange(y, 10)
+  return {
+    statYear: y,
+    fromYear: from,
+    toYear: to,
+    thisYearHires: kpi.hiresYtd,
+    thisYearResigns: kpi.resignsYtd,
+    hiresByYear: [],
+    resignsByYear: [],
+  }
+}
+
 export function buildHeadcountPublicSnapshot(
   personnel: PersonnelRow[],
   training: TrainingRow[],
@@ -159,6 +295,8 @@ export function buildHeadcountPublicSnapshot(
   }
 
   const overviewKpi = computePublicOverviewKpi(personnel, leave, training, base)
+  const maternityOverview = computePublicMaternityOverview(personnel, leave, base)
+  const movementOverview = computePublicMovementOverview(personnel, base)
 
   return {
     version: 1,
@@ -173,6 +311,8 @@ export function buildHeadcountPublicSnapshot(
     yearlyRank: yearlyHeadcountByRankBandDesc(personnel, yearRange.from, yearRange.to),
     monthBoundaryByYear,
     meritTrainingCount: overviewKpi.meritTraining,
+    maternityOverview,
+    movementOverview,
   }
 }
 
