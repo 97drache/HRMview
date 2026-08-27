@@ -1,30 +1,30 @@
 {
   "version": 1,
-  "generatedAt": "2026-07-10T08:41:14.065Z",
-  "baseDate": "2026-07-15",
+  "generatedAt": "2026-08-27T09:17:27.304Z",
+  "baseDate": "2026-08-27",
   "sheetNotes": [],
   "empty": false,
   "overviewKpi": {
     "statYear": 2026,
-    "male": 88,
-    "female": 144,
-    "regular": 109,
-    "mugi": 123,
+    "male": 91,
+    "female": 143,
+    "regular": 112,
+    "mugi": 122,
     "meritTraining": 1,
-    "onLeave": 19,
-    "leaveScheduled": 7,
-    "onMaternity": 2,
-    "maternityScheduled": 2,
-    "hiresYtd": 8,
-    "resignsYtd": 4,
+    "onLeave": 17,
+    "leaveScheduled": 9,
+    "onMaternity": 3,
+    "maternityScheduled": 3,
+    "hiresYtd": 12,
+    "resignsYtd": 6,
     "wagePeakYtd": 6
   },
   "jobGender": [
     {
       "job": "행정직",
-      "male": 41,
+      "male": 44,
       "female": 29,
-      "total": 70
+      "total": 73
     },
     {
       "job": "기술직",
@@ -47,28 +47,28 @@
     {
       "job": "일반직",
       "male": 13,
-      "female": 83,
-      "total": 96
+      "female": 82,
+      "total": 95
     }
   ],
   "genderEmployment": [
     {
       "label": "남",
-      "regular": 68,
+      "regular": 71,
       "mugi": 20,
-      "total": 88
+      "total": 91
     },
     {
       "label": "여",
       "regular": 41,
-      "mugi": 103,
-      "total": 144
+      "mugi": 102,
+      "total": 143
     },
     {
       "label": "계",
-      "regular": 109,
-      "mugi": 123,
-      "total": 232
+      "regular": 112,
+      "mugi": 122,
+      "total": 234
     }
   ],
   "yearRange": {
@@ -80,12 +80,12 @@
       "year": 2026,
       "책임급": 48,
       "선임급": 19,
-      "원급": 32,
+      "원급": 36,
       "기능직": 9,
       "관리직": 27,
-      "무기직": 96,
+      "무기직": 94,
       "기타": 0,
-      "total": 231
+      "total": 233
     },
     {
       "year": 2025,
@@ -1912,32 +1912,32 @@
       {
         "month": 7,
         "monthStart": 232,
-        "monthEnd": 231
+        "monthEnd": 235
       },
       {
         "month": 8,
-        "monthStart": 231,
-        "monthEnd": 231
+        "monthStart": 235,
+        "monthEnd": 234
       },
       {
         "month": 9,
-        "monthStart": 231,
-        "monthEnd": 231
+        "monthStart": 234,
+        "monthEnd": 233
       },
       {
         "month": 10,
-        "monthStart": 231,
-        "monthEnd": 231
+        "monthStart": 233,
+        "monthEnd": 233
       },
       {
         "month": 11,
-        "monthStart": 231,
-        "monthEnd": 231
+        "monthStart": 233,
+        "monthEnd": 233
       },
       {
         "month": 12,
-        "monthStart": 231,
-        "monthEnd": 231
+        "monthStart": 233,
+        "monthEnd": 233
       }
     ]
   },
@@ -1946,13 +1946,13 @@
     "statYear": 2026,
     "fromYear": 2017,
     "toYear": 2026,
-    "onChildcare": 17,
-    "childcareScheduled": 7,
-    "onMaternity": 2,
-    "maternityScheduled": 2,
-    "onLeave": 19,
-    "thisYearStarts": 13,
-    "thisYearPresent": 26,
+    "onChildcare": 16,
+    "childcareScheduled": 9,
+    "onMaternity": 3,
+    "maternityScheduled": 3,
+    "onLeave": 17,
+    "thisYearStarts": 15,
+    "thisYearPresent": 28,
     "startsByYear": [
       {
         "year": 2017,
@@ -1992,7 +1992,7 @@
       },
       {
         "year": 2026,
-        "count": 13
+        "count": 15
       }
     ],
     "presentByYear": [
@@ -2034,7 +2034,7 @@
       },
       {
         "year": 2026,
-        "count": 26
+        "count": 28
       }
     ]
   },
@@ -2042,8 +2042,8 @@
     "statYear": 2026,
     "fromYear": 2017,
     "toYear": 2026,
-    "thisYearHires": 8,
-    "thisYearResigns": 4,
+    "thisYearHires": 12,
+    "thisYearResigns": 6,
     "hiresByYear": [
       {
         "year": 2017,
@@ -2083,7 +2083,7 @@
       },
       {
         "year": 2026,
-        "count": 8
+        "count": 12
       }
     ],
     "resignsByYear": [
@@ -2125,7 +2125,7 @@
       },
       {
         "year": 2026,
-        "count": 4
+        "count": 6
       }
     ]
   }
